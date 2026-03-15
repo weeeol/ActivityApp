@@ -46,6 +46,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 
 @Composable
 fun NotesScreen(notes: MutableList<Note>) {
@@ -149,11 +150,29 @@ fun NoteCard(note: Note, onDelete: () -> Unit, onClick: () -> Unit) {
             }
 
             if (note.title.isNotBlank()) {
-                Text(text = note.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = titleColor, fontFamily = fontFamily)
+                Text(
+                    text = note.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = titleColor,
+                    fontFamily = fontFamily,
+                    // Optional: You can also cap the title to 1 or 2 lines!
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
                 Spacer(modifier = Modifier.height(4.dp))
             }
 
-            Text(text = note.content, style = MaterialTheme.typography.bodyMedium, color = textColor, fontFamily = fontFamily)
+            // THE FIX: Restrict the main content to 5 lines
+            Text(
+                text = note.content,
+                style = MaterialTheme.typography.bodyMedium,
+                color = textColor,
+                fontFamily = fontFamily,
+                maxLines = 5, // Change this number to whatever looks best to you
+                overflow = TextOverflow.Ellipsis // Adds the "..." when cut off
+            )
+
             Spacer(modifier = Modifier.height(12.dp))
             Text(text = note.timestamp, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
         }
