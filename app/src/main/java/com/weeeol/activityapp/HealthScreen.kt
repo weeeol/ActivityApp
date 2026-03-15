@@ -22,7 +22,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.tween
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.PI
