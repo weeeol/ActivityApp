@@ -31,7 +31,11 @@ data class Note(
     var title: String,
     var content: String,
     var folderId: String? = null,
-    var timestamp: String = SimpleDateFormat("MMM dd, yyyy • hh:mm a", Locale.getDefault()).format(Date()),
+    var timestamp: String = java.text.SimpleDateFormat("MMM dd, yyyy • hh:mm a", java.util.Locale.getDefault()).format(java.util.Date()),
+
+    // NEW: The flag to track IDE mode! Defaults to false for normal notes.
+    var isCodeMode: Boolean = false,
+
     val id: String = java.util.UUID.randomUUID().toString()
 )
 

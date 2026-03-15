@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
@@ -43,6 +44,9 @@ import androidx.compose.ui.unit.dp
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 
 @Composable
 fun NotesScreen(notes: MutableList<Note>) {
@@ -126,12 +130,17 @@ fun NotesScreen(notes: MutableList<Note>) {
 // NEW: Added the onClick parameter
 @Composable
 fun NoteCard(note: Note, onDelete: () -> Unit, onClick: () -> Unit) {
+    // THE FIX: Adaptive styling for the grid cards
+    val containerColor = if (note.isCodeMode) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
+    val textColor = MaterialTheme.colorScheme.onSurface
+    val titleColor = if (note.isCodeMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+    val fontFamily = if (note.isCodeMode) FontFamily.Monospace else FontFamily.Default
+
     Card(
-        // NEW: Added .clickable so the whole card responds to a tap
         modifier = Modifier.fillMaxWidth().clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
             Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
@@ -141,11 +150,11 @@ fun NoteCard(note: Note, onDelete: () -> Unit, onClick: () -> Unit) {
             }
 
             if (note.title.isNotBlank()) {
-                Text(text = note.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(text = note.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = titleColor, fontFamily = fontFamily)
                 Spacer(modifier = Modifier.height(4.dp))
             }
 
-            Text(text = note.content, style = MaterialTheme.typography.bodyMedium)
+            Text(text = note.content, style = MaterialTheme.typography.bodyMedium, color = textColor, fontFamily = fontFamily)
             Spacer(modifier = Modifier.height(12.dp))
             Text(text = note.timestamp, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
         }
@@ -153,39 +162,77 @@ fun NoteCard(note: Note, onDelete: () -> Unit, onClick: () -> Unit) {
 }
 
 @Composable
-fun EditNoteFullscreen(note: Note, onBack: (Note) -> Unit) { // Notice onBack now passes the note back!
-    // Temporary memory for the screen while you type
+fun EditNoteFullscreen(note: Note, onBack: (Note) -> Unit) {
     var tempTitle by remember { mutableStateOf(note.title) }
     var tempContent by remember { mutableStateOf(note.content) }
+    var tempIsCodeMode by remember { mutableStateOf(note.isCodeMode) }
 
-    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Row(modifier = Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.Start) {
+    // THE FIX: Use MaterialTheme colors instead of hardcoded HEX colors!
+    val backgroundColor = if (tempIsCodeMode) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.background
+    val textColor = MaterialTheme.colorScheme.onSurface
+    val titleColor = if (tempIsCodeMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+    val fontFamily = if (tempIsCodeMode) FontFamily.Monospace else FontFamily.Default
+
+    Column(modifier = Modifier.fillMaxSize().background(backgroundColor)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             IconButton(onClick = {
-                // When we leave, update the real note and send it back to trigger a save!
                 note.title = tempTitle
                 note.content = tempContent
-                note.timestamp = SimpleDateFormat("MMM dd, yyyy • hh:mm a", Locale.getDefault()).format(Date())
+                note.isCodeMode = tempIsCodeMode
+                note.timestamp = java.text.SimpleDateFormat("MMM dd, yyyy • hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())
                 onBack(note)
             }) {
-                Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = textColor)
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(text = "Code Mode", color = textColor, style = MaterialTheme.typography.labelMedium)
+                Spacer(modifier = Modifier.width(8.dp))
+                Switch(
+                    checked = tempIsCodeMode,
+                    onCheckedChange = { tempIsCodeMode = it }
+                    // Removed the hardcoded switch colors so it matches your app theme!
+                )
             }
         }
 
         TextField(
             value = tempTitle,
-            onValueChange = { tempTitle = it }, // Now edits the temp title
-            textStyle = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-            placeholder = { Text("Title", style = MaterialTheme.typography.headlineMedium, color = Color.LightGray) },
-            colors = TextFieldDefaults.colors(focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent),
+            onValueChange = { tempTitle = it },
+            textStyle = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold, fontFamily = fontFamily),
+            placeholder = { Text("Title", style = MaterialTheme.typography.headlineMedium, color = Color.Gray) },
+            // THE FIX: Explicitly set the focused/unfocused text colors here
+            colors = TextFieldDefaults.colors(
+                focusedTextColor = titleColor,
+                unfocusedTextColor = titleColor,
+                cursorColor = MaterialTheme.colorScheme.primary,
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent
+            ),
             modifier = Modifier.fillMaxWidth()
         )
 
         TextField(
             value = tempContent,
-            onValueChange = { tempContent = it }, // Now edits the temp content
-            textStyle = MaterialTheme.typography.bodyLarge,
-            placeholder = { Text("Note", color = Color.LightGray) },
-            colors = TextFieldDefaults.colors(focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent),
+            onValueChange = { tempContent = it },
+            textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = fontFamily),
+            placeholder = { Text("Write your code snippet...", color = Color.Gray) },
+            // THE FIX: Explicitly set the focused/unfocused text colors here
+            colors = TextFieldDefaults.colors(
+                focusedTextColor = textColor,
+                unfocusedTextColor = textColor,
+                cursorColor = MaterialTheme.colorScheme.primary,
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent
+            ),
             modifier = Modifier.fillMaxSize()
         )
     }
