@@ -41,22 +41,24 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun ActivityAppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = false,
+    // 2. NEW: Add a toggle for dynamic color (defaults to true)
+    dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
+        // 3. THE MAGIC: Check if dynamic color is allowed AND if the phone is Android 12+ (S)
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-
+        // 4. Fallback for older Android versions
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
 
     MaterialTheme(
         colorScheme = colorScheme,
+        // Make sure this matches your typography variable if you have one!
         typography = Typography,
         content = content
     )

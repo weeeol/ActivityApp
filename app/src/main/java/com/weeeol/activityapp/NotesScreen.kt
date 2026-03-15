@@ -43,6 +43,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.material3.Switch
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.text.style.TextAlign
 
 @Composable
 fun NotesScreen(notes: MutableList<Note>) {
@@ -168,6 +171,7 @@ fun EditNoteFullscreen(note: Note, onBack: (Note) -> Unit) {
     val textColor = MaterialTheme.colorScheme.onSurface
     val titleColor = if (tempIsCodeMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
     val fontFamily = if (tempIsCodeMode) FontFamily.Monospace else FontFamily.Default
+    val scrollState = rememberScrollState()
 
     Column(modifier = Modifier.fillMaxSize().background(backgroundColor)) {
         Row(
@@ -218,22 +222,45 @@ fun EditNoteFullscreen(note: Note, onBack: (Note) -> Unit) {
             modifier = Modifier.fillMaxWidth()
         )
 
-        TextField(
-            value = tempContent,
-            onValueChange = { tempContent = it },
-            textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = fontFamily),
-            placeholder = { Text("Write your code snippet...", color = Color.Gray) },
-            // THE FIX: Explicitly set the focused/unfocused text colors here
-            colors = TextFieldDefaults.colors(
-                focusedTextColor = textColor,
-                unfocusedTextColor = textColor,
-                cursorColor = MaterialTheme.colorScheme.primary,
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent
-            ),
-            modifier = Modifier.fillMaxSize()
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+        ) {
+            // 3. Only show the line numbers if the switch is flipped
+            if (tempIsCodeMode) {
+                // Count the lines and create a string like "1\n2\n3"
+                val lineCount = tempContent.count { it == '\n' } + 1
+                val lineNumbers = (1..lineCount).joinToString("\n")
+
+                Text(
+                    text = lineNumbers,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontFamily = fontFamily),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), // Faded text
+                    textAlign = TextAlign.End, // Align numbers to the right
+                    modifier = Modifier
+                        .padding(start = 16.dp, top = 16.dp) // Matches the TextField's default inner padding perfectly
+                        .width(28.dp) // Gives the numbers enough room up to 999 lines
+                )
+            }
+
+            // 4. Your existing TextField
+            TextField(
+                value = tempContent,
+                onValueChange = { tempContent = it },
+                textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = fontFamily),
+                placeholder = { Text("Write your code snippet...", color = Color.Gray) },
+                colors = TextFieldDefaults.colors(
+                    focusedTextColor = textColor,
+                    unfocusedTextColor = textColor,
+                    cursorColor = MaterialTheme.colorScheme.primary,
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 }
