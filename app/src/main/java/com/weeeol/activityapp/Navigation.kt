@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -36,12 +37,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.PaintingStyle
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.layout.onSizeChanged
 
 @Composable
 fun FloatingNavigationBar(
@@ -52,7 +57,7 @@ fun FloatingNavigationBar(
     val navItems = NavItem.entries
     val selectedIndex = navItems.indexOf(selectedItem)
 
-    var barWidthPx by remember { mutableStateOf(0f) }
+    var barWidthPx by remember { mutableFloatStateOf(0f) }
     var isDragging by remember { mutableStateOf(false) }
 
     val currentSelectedIndex by rememberUpdatedState(selectedIndex)
@@ -71,19 +76,50 @@ fun FloatingNavigationBar(
         }
     }
 
+    val glowColor = MaterialTheme.colorScheme.primary
+
     Box(
         modifier = modifier
             .padding(horizontal = 24.dp)
             .height(72.dp)
             .fillMaxWidth()
-            .clip(RoundedCornerShape(36.dp))
-            // THE FIX 1: The main glass body. Uses the surface color (white or black) at 70% opacity.
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
-            // THE FIX 2: The glossy edge. Uses the text color (black or white) at 10% opacity.
-            .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), RoundedCornerShape(36.dp))
-            .onSizeChanged { size ->
-                barWidthPx = size.width.toFloat()
+
+            // 1. THE OUTLINE BLOOM MAGIC
+            .drawBehind {
+                drawIntoCanvas { canvas ->
+                    val paint = Paint().apply {
+                        color = glowColor
+                        style = PaintingStyle.Stroke
+                        strokeWidth = 6.dp.toPx() // The thickness of the glow
+                    }
+
+                    // Blurs the stroke to create the soft bloom effect
+                    paint.asFrameworkPaint().maskFilter =
+                        android.graphics.BlurMaskFilter(16.dp.toPx(), android.graphics.BlurMaskFilter.Blur.NORMAL)
+
+                    // Draw the glowing outline exactly where the border will be
+                    canvas.drawRoundRect(
+                        left = 0f,
+                        top = 0f,
+                        right = size.width,
+                        bottom = size.height,
+                        radiusX = 36.dp.toPx(),
+                        radiusY = 36.dp.toPx(),
+                        paint = paint
+                    )
+
+                }
             }
+
+            // 2. Your glass background
+            .clip(RoundedCornerShape(36.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
+
+            // 3. I updated the border color here to match the glow slightly so it blends better!
+            .border(1.dp, glowColor.copy(alpha = 0.5f), RoundedCornerShape(36.dp))
+
+            // 4. Everything else stays the same
+            .onSizeChanged { size -> barWidthPx = size.width.toFloat() }
             .pointerInput(barWidthPx) {
                 detectHorizontalDragGestures(
                     onDragStart = { isDragging = true },

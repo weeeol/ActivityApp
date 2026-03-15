@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.Brightness7
 import java.time.LocalDate
 
 
-
 // 2. The missing MainActivity class! This is what tells Android to draw the screen.
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
