@@ -26,6 +26,13 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.PI
 import kotlin.random.Random
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.clickable
 
 @Composable
 fun ParticleExplosion(
@@ -85,8 +92,10 @@ fun ParticleExplosion(
 @Composable
 fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> Unit) {
     val waterGoal = 8
-
     var showWaterExplosion by remember { mutableStateOf(false) }
+
+    // NEW: State to track if the extra details are expanded or hidden
+    var showDetails by remember { mutableStateOf(false) }
 
     LaunchedEffect(waterGlasses) {
         if (waterGlasses == waterGoal) {
@@ -94,14 +103,11 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
         }
     }
 
-    // --- 1. REPLACED CALORIES WITH SLEEP ---
-    val sleepHours = 6.5f // You can change this to test the ring!
+    val sleepHours = 6.5f
     val sleepGoal = 8.0f
-
     val steps = 6432
     val stepsGoal = 10000
 
-    // --- 2. UPDATED PROGRESS MATH ---
     val sleepProgress = (sleepHours / sleepGoal).coerceIn(0f, 1f)
     val stepsProgress = (steps.toFloat() / stepsGoal).coerceIn(0f, 1f)
     val waterProgress = (waterGlasses.toFloat() / waterGoal).coerceIn(0f, 1f)
@@ -119,14 +125,17 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
                 .align(Alignment.Start)
         )
 
+        // THE RINGS BOX
         Box(
             modifier = Modifier
                 .padding(vertical = 16.dp)
-                .size(200.dp),
+                .size(200.dp)
+                .clip(CircleShape) // Keeps the click ripple perfectly round!
+                .clickable { showDetails = !showDetails }, // THE TOGGLE
             contentAlignment = Alignment.Center
         ) {
             ActivityRings(
-                moveProgress = sleepProgress,     // The Outer Red Ring is now Sleep!
+                moveProgress = sleepProgress,
                 exerciseProgress = stepsProgress,
                 standProgress = waterProgress
             )
@@ -138,11 +147,20 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
             )
         }
 
-        // --- 3. REPLACED THE CALORIE CARD ---
-        ActivityCard(title = "Sleep", current = "$sleepHours", goal = " / ${sleepGoal.toInt()} hrs")
+        // THE MAGIC: Animated visibility for the extra cards
+        AnimatedVisibility(
+            visible = showDetails,
+            enter = fadeIn() + expandVertically(animationSpec = spring()),
+            exit = fadeOut() + shrinkVertically(animationSpec = spring())
+        ) {
+            // Group the hidden cards inside this column
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                ActivityCard(title = "Sleep", current = "$sleepHours", goal = " / ${sleepGoal.toInt()} hrs")
+                ActivityCard(title = "Steps", current = "$steps", goal = " / $stepsGoal")
+            }
+        }
 
-        ActivityCard(title = "Steps", current = "$steps", goal = " / $stepsGoal")
-
+        // Water is kept outside the toggle so you can always quickly click "+"
         WaterIntakeCard(
             current = waterGlasses,
             goal = waterGoal,
