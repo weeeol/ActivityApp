@@ -41,12 +41,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 
 @Composable
 fun NotesScreen(notes: MutableList<Note>) {
@@ -176,7 +172,8 @@ fun EditNoteFullscreen(note: Note, onBack: (Note) -> Unit) {
     Column(modifier = Modifier.fillMaxSize().background(backgroundColor)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            // 1. Change this to Start so everything clusters on the left
+            horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = {
@@ -189,13 +186,16 @@ fun EditNoteFullscreen(note: Note, onBack: (Note) -> Unit) {
                 Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = textColor)
             }
 
+            // 2. Add a little breathing room between the back arrow and the switch
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // The Code Mode Toggle (Now sits safely on the left side!)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(text = "Code Mode", color = textColor, style = MaterialTheme.typography.labelMedium)
                 Spacer(modifier = Modifier.width(8.dp))
                 Switch(
                     checked = tempIsCodeMode,
                     onCheckedChange = { tempIsCodeMode = it }
-                    // Removed the hardcoded switch colors so it matches your app theme!
                 )
             }
         }
