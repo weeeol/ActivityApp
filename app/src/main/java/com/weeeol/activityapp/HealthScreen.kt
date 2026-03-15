@@ -87,23 +87,24 @@ fun ParticleExplosion(
 fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> Unit) {
     val waterGoal = 8
 
-    // NEW: State to trigger the explosion
     var showWaterExplosion by remember { mutableStateOf(false) }
 
-    // NEW: Watch the water count. If it hits the goal, boom!
     LaunchedEffect(waterGlasses) {
         if (waterGlasses == waterGoal) {
             showWaterExplosion = true
         }
     }
 
+    // --- 1. REPLACED CALORIES WITH SLEEP ---
+    val sleepHours = 6.5f // You can change this to test the ring!
+    val sleepGoal = 8.0f
+
     val steps = 6432
     val stepsGoal = 10000
-    val calories = 1450
-    val caloriesGoal = 2000
 
+    // --- 2. UPDATED PROGRESS MATH ---
+    val sleepProgress = (sleepHours / sleepGoal).coerceIn(0f, 1f)
     val stepsProgress = (steps.toFloat() / stepsGoal).coerceIn(0f, 1f)
-    val caloriesProgress = (calories.toFloat() / caloriesGoal).coerceIn(0f, 1f)
     val waterProgress = (waterGlasses.toFloat() / waterGoal).coerceIn(0f, 1f)
 
     Column(
@@ -114,41 +115,40 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
         Text(
             text = "Today's Activity",
             style = MaterialTheme.typography.headlineLarge,
-            modifier = Modifier.padding(bottom = 8.dp).align(Alignment.Start)
+            modifier = Modifier
+                .padding(bottom = 8.dp)
+                .align(Alignment.Start)
         )
 
-        // The Rings and the Explosion
         Box(
             modifier = Modifier
                 .padding(vertical = 16.dp)
                 .size(200.dp),
             contentAlignment = Alignment.Center
         ) {
-            // Layer 1: The Rings
             ActivityRings(
-                moveProgress = caloriesProgress,
+                moveProgress = sleepProgress,     // The Outer Red Ring is now Sleep!
                 exerciseProgress = stepsProgress,
                 standProgress = waterProgress
             )
 
-            // Layer 2: The Particle Emitter drawn on top!
             ParticleExplosion(
                 isTriggered = showWaterExplosion,
-                particleColor = Color(0xFF1DDAE2), // The Cyan color of the water ring
-                onFinished = { showWaterExplosion = false } // Reset so it can happen again tomorrow
+                particleColor = Color(0xFF1DDAE2),
+                onFinished = { showWaterExplosion = false }
             )
         }
 
-        // 3. The cards below the rings
-        ActivityCard(title = "Calories Burned", current = "$calories", goal = " / $caloriesGoal kcal")
+        // --- 3. REPLACED THE CALORIE CARD ---
+        ActivityCard(title = "Sleep", current = "$sleepHours", goal = " / ${sleepGoal.toInt()} hrs")
+
         ActivityCard(title = "Steps", current = "$steps", goal = " / $stepsGoal")
 
-        // Pass the state down to the card
         WaterIntakeCard(
             current = waterGlasses,
             goal = waterGoal,
             onAddWater = onAddWater,
-            onResetWater = onResetWater // NEW
+            onResetWater = onResetWater
         )
     }
 }
