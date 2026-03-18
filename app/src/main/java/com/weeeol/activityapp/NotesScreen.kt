@@ -201,6 +201,7 @@ fun EditNoteFullscreen(note: Note, onBack: (Note) -> Unit) {
 
     // --- NEW: HIGHLIGHT LOGIC ---
     val highlightColor = MaterialTheme.colorScheme.primaryContainer
+    val onHighlightTextColor = MaterialTheme.colorScheme.onPrimaryContainer
 
     // 2. Find the word the cursor is touching
     val activeWord = remember(tempContent) {
@@ -218,29 +219,68 @@ fun EditNoteFullscreen(note: Note, onBack: (Note) -> Unit) {
 
     // 3. Paint the highlights over matching words!
     val codeVisualTransformation = remember(activeWord, tempIsCodeMode) {
+        // Standard IDE Colors (Works well in both light and dark modes)
+        val keywordColor = Color(0xFFC678DD) // Purple
+        val stringColor = Color(0xFF98C379)  // Green
+        val numberColor = Color(0xFFD19A66)  // Orange
+        val commentColor = Color(0xFF7F848E) // Grey
+
+        // Regex Patterns to find code elements
+        val keywordRegex = Regex("\\b(val|var|fun|class|interface|if|else|for|while|return|true|false|null|import|package)\\b")
+        val numberRegex = Regex("\\b\\d+(\\.\\d+)?\\b")
+        val stringRegex = Regex("\".*?\"")
+        val commentRegex = Regex("//.*")
+
         VisualTransformation { text ->
             val annotatedString = buildAnnotatedString {
                 append(text.text)
 
-                // Only highlight if it's an actual word (letters/numbers)
-                if (tempIsCodeMode && activeWord.isNotBlank() && activeWord.matches(Regex("\\w+"))) {
-                    var startIndex = 0
-                    while (startIndex < text.length) {
-                        val index = text.indexOf(activeWord, startIndex)
-                        if (index == -1) break
+                if (tempIsCodeMode) {
+                    // --- SYNTAX HIGHLIGHTING ---
 
-                        // Ensure it's a whole word match (so 'in' doesn't highlight inside 'print')
-                        val isStartBoundary = index == 0 || !text[index - 1].isLetterOrDigit()
-                        val isEndBoundary = index + activeWord.length == text.length || !text[index + activeWord.length].isLetterOrDigit()
+                    // 1. Highlight Numbers
+                    numberRegex.findAll(text.text).forEach { match ->
+                        addStyle(SpanStyle(color = numberColor), match.range.first, match.range.last + 1)
+                    }
 
-                        if (isStartBoundary && isEndBoundary) {
-                            addStyle(
-                                style = SpanStyle(background = highlightColor),
-                                start = index,
-                                end = index + activeWord.length
-                            )
+                    // 2. Highlight Keywords (Make them bold and purple!)
+                    keywordRegex.findAll(text.text).forEach { match ->
+                        addStyle(SpanStyle(color = keywordColor, fontWeight = FontWeight.Bold), match.range.first, match.range.last + 1)
+                    }
+
+                    // 3. Highlight Strings (Done after keywords so words inside quotes stay green)
+                    stringRegex.findAll(text.text).forEach { match ->
+                        addStyle(SpanStyle(color = stringColor), match.range.first, match.range.last + 1)
+                    }
+
+                    // 4. Highlight Comments (Overrides everything else on that line)
+                    commentRegex.findAll(text.text).forEach { match ->
+                        addStyle(SpanStyle(color = commentColor), match.range.first, match.range.last + 1)
+                    }
+
+                    // --- ACTIVE WORD HIGHLIGHTING (From our previous step) ---
+                    if (activeWord.isNotBlank() && activeWord.matches(Regex("\\w+"))) {
+                        var startIndex = 0
+                        while (startIndex < text.length) {
+                            val index = text.indexOf(activeWord, startIndex)
+                            if (index == -1) break
+
+                            val isStartBoundary = index == 0 || !text[index - 1].isLetterOrDigit()
+                            val isEndBoundary = index + activeWord.length == text.length || !text[index + activeWord.length].isLetterOrDigit()
+
+                            if (isStartBoundary && isEndBoundary) {
+                                addStyle(
+                                    // Change the text color to contrast with the highlight box!
+                                    style = SpanStyle(
+                                        background = highlightColor,
+                                        color = onHighlightTextColor
+                                    ),
+                                    start = index,
+                                    end = index + activeWord.length
+                                )
+                            }
+                            startIndex = index + activeWord.length
                         }
-                        startIndex = index + activeWord.length
                     }
                 }
             }
