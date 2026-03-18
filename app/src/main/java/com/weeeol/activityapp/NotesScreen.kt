@@ -53,81 +53,123 @@ import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.SpanStyle
-
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.TextButton
 @Composable
 fun NotesScreen(notes: MutableList<Note>) {
-    // Delete the old "val notes" line!
-
     var titleText by remember { mutableStateOf("") }
     var contentText by remember { mutableStateOf("") }
 
-    // NEW: This remembers which note you are currently editing
+    // NEW: State to trigger the popup window!
+    var showAddNoteDialog by remember { mutableStateOf(false) }
+
     var editingNote by remember { mutableStateOf<Note?>(null) }
 
-    // THE SWITCH: Are we editing a note, or looking at the grid?
     if (editingNote != null) {
         EditNoteFullscreen(
             note = editingNote!!,
             onBack = { updatedNote ->
-                // This forces the list to recognize the change and triggers the auto-save!
                 val index = notes.indexOfFirst { it.id == updatedNote.id }
                 if (index != -1) notes[index] = updatedNote.copy()
                 editingNote = null
             }
         )
     } else {
-        // Show the normal grid
-        Column(modifier = Modifier.fillMaxSize().padding(top = 16.dp)) {
-            Text(text = "Keep Notes", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 16.dp))
-            Spacer(modifier = Modifier.height(16.dp))
+        // We wrap the screen in a Box to float the button over the grid
+        Box(modifier = Modifier.fillMaxSize()) {
 
-            OutlinedTextField(
-                value = titleText,
-                onValueChange = { titleText = it },
-                label = { Text("Title") },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                singleLine = true
-            )
+            Column(modifier = Modifier.fillMaxSize().padding(top = 16.dp)) {
+                Text(
+                    text = "Notes",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-            OutlinedTextField(
-                value = contentText,
-                onValueChange = { contentText = it },
-                label = { Text("Take a note...") },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).heightIn(min = 100.dp)
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Button(
-                onClick = {
-                    if (contentText.isNotBlank() || titleText.isNotBlank()) {
-                        notes.add(0, Note(titleText, contentText))
-                        titleText = ""
-                        contentText = ""
+                // The Grid (Now takes up the whole screen!)
+                LazyVerticalStaggeredGrid(
+                    columns = StaggeredGridCells.Fixed(2),
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    verticalItemSpacing = 8.dp,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    // Adds padding to the bottom so the last notes don't get hidden behind the nav bar
+                    contentPadding = PaddingValues(bottom = 120.dp)
+                ) {
+                    items(notes, key = { it.id }) { note ->
+                        NoteCard(
+                            note = note,
+                            onDelete = { notes.remove(note) },
+                            onClick = { editingNote = note }
+                        )
                     }
-                },
-                modifier = Modifier.align(Alignment.End).padding(horizontal = 16.dp)
-            ) {
-                Text("Save")
+                }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            LazyVerticalStaggeredGrid(
-                columns = StaggeredGridCells.Fixed(2),
-                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                verticalItemSpacing = 8.dp,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            // --- THE NEW FLOATING ADD BUTTON ---
+            FloatingActionButton(
+                onClick = { showAddNoteDialog = true },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 24.dp, bottom = 120.dp), // Pushed up above your nav bar
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             ) {
-                items(notes, key = { it.id }) { note ->
-                    NoteCard(
-                        note = note,
-                        onDelete = { notes.remove(note) },
-                        onClick = { editingNote = note } // NEW: Pass the clicked note up!
-                    )
-                }
+                Icon(imageVector = Icons.Default.Add, contentDescription = "Add Note")
+            }
+
+            // --- THE ADD NOTE POP-UP WINDOW ---
+            if (showAddNoteDialog) {
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { showAddNoteDialog = false },
+                    title = { Text("Create New Note") },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            OutlinedTextField(
+                                value = titleText,
+                                onValueChange = { titleText = it },
+                                label = { Text("Title") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            OutlinedTextField(
+                                value = contentText,
+                                onValueChange = { contentText = it },
+                                label = { Text("Take a note...") },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 100.dp)
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                if (contentText.isNotBlank() || titleText.isNotBlank()) {
+                                    // Add to the top of the list!
+                                    notes.add(0, Note(titleText, contentText))
+
+                                    // Clean up and close
+                                    titleText = ""
+                                    contentText = ""
+                                    showAddNoteDialog = false
+                                }
+                            }
+                        ) {
+                            Text("Save")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = {
+                            showAddNoteDialog = false
+                            titleText = ""
+                            contentText = ""
+                        }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
             }
         }
     }
