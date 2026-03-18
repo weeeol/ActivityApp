@@ -39,7 +39,10 @@ A modern, feature-rich Android productivity and lifestyle tracking application b
 * **Architecture:** State-driven Compose architecture with localized Data Managers.
 
 ## 📱 Screenshots
- ![Screenshot](img/s1.png)
+ ![Screenshot](img/s1.png) 
+ ![Screenshot](img/s2.png) 
+ ![Screenshot](img/s3.png) 
+ ![Screenshot](img/s4.png)
 ## 🚀 Getting Started
 
 ### Prerequisites
