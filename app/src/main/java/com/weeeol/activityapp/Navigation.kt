@@ -47,6 +47,7 @@ import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.PaintingStyle
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 
 @Composable
 fun FloatingNavigationBar(
@@ -77,6 +78,20 @@ fun FloatingNavigationBar(
     }
 
     val glowColor = MaterialTheme.colorScheme.primary
+    val density = LocalDensity.current
+
+    // THE FIX: We calculate the heavy blur effect exactly ONCE and remember it!
+    val blurPaint = remember(glowColor, density) {
+        Paint().apply {
+            color = glowColor
+            style = PaintingStyle.Stroke
+            with(density) {
+                strokeWidth = 6.dp.toPx()
+                asFrameworkPaint().maskFilter =
+                    android.graphics.BlurMaskFilter(16.dp.toPx(), android.graphics.BlurMaskFilter.Blur.NORMAL)
+            }
+        }
+    }
 
     Box(
         modifier = modifier
@@ -105,7 +120,7 @@ fun FloatingNavigationBar(
                         bottom = size.height,
                         radiusX = 36.dp.toPx(),
                         radiusY = 36.dp.toPx(),
-                        paint = paint
+                        paint = blurPaint
                     )
 
                 }
