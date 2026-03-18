@@ -48,126 +48,174 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.TextButton
 
 @Composable
-fun TimerScreen(timers: MutableList<TimerEvent>){
+fun TimerScreen(timers: MutableList<TimerEvent>) {
     val activityList = listOf("College Assignments", "Game Dev", "Python & Git", "Running")
-    var selectedActivity by remember { mutableStateOf("")
-    }
+    var selectedActivity by remember { mutableStateOf("") }
+
     val durationOptions = listOf(5, 15, 25, 45, 60)
     var selectedDuration by remember { mutableIntStateOf(durationOptions[2]) }
     var selectedTime by remember { mutableStateOf<LocalTime?>(null) }
 
     val context = LocalContext.current
 
-    Column(
-        modifier = Modifier.fillMaxSize().padding(top = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(text = "Create New Timer", style = MaterialTheme.typography.titleLarge)
-        Spacer(modifier = Modifier.height(16.dp))
+    // NEW: State to trigger the popup window!
+    var showAddTimerDialog by remember { mutableStateOf(false) }
 
-        // --- NEW: THE TEXT INPUT FIELD ---
-        OutlinedTextField(
-            value = selectedActivity,
-            onValueChange = { selectedActivity = it }, // Updates text as you type
-            label = { Text("Activity Name") },
-            placeholder = { Text("e.g. Reading, Meditation") },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            singleLine = true
-        )
+    // Wrap in a Box to float the FAB
+    Box(modifier = Modifier.fillMaxSize()) {
 
-        Spacer(modifier = Modifier.height(12.dp))
+        // --- MAIN SCREEN CONTENT ---
+        Column(modifier = Modifier.fillMaxSize().padding(top = 16.dp)) {
+            Text(
+                text = "My Timers",
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
 
-        // Activity Selection (Now acts as quick-fill chips)
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-        ) {
-            items(activityList) { activity ->
-                val isSelected = selectedActivity == activity
-                Surface(
-                    modifier = Modifier.clip(CircleShape).clickable {
-                        // Tapping a chip fills the text field!
-                        selectedActivity = activity
-                    },
-                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                ) {
-                    Text(
-                        text = activity,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Active Timers List
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                // Padding so the last timer isn't hidden by the nav bar
+                contentPadding = PaddingValues(bottom = 120.dp)
+            ) {
+                items(timers, key = { it.id }) { timerEvent ->
+                    TimerCard(timer = timerEvent, onDelete = { timers.remove(timerEvent) })
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Time Slot Selection
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+        // --- THE NEW FLOATING ADD BUTTON ---
+        FloatingActionButton(
+            onClick = { showAddTimerDialog = true },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 24.dp, bottom = 120.dp),
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
         ) {
-            items(durationOptions) { duration ->
-                val isSelected = selectedDuration == duration
-                Surface(
-                    modifier = Modifier.clip(CircleShape).clickable { selectedDuration = duration },
-                    color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                ) {
-                    Text(
-                        text = "$duration min",
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            Icon(imageVector = Icons.Default.Add, contentDescription = "Add Timer")
+        }
+
+        // --- THE ADD TIMER POP-UP WINDOW ---
+        if (showAddTimerDialog) {
+            AlertDialog(
+                onDismissRequest = { showAddTimerDialog = false },
+                title = { Text("Create New Timer") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+
+                        // 1. Text Input
+                        OutlinedTextField(
+                            value = selectedActivity,
+                            onValueChange = { selectedActivity = it },
+                            label = { Text("Activity Name") },
+                            placeholder = { Text("e.g. Reading, Meditation") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+
+                        // 2. Quick Select Chips
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Quick Select", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(activityList) { activity ->
+                                    val isSelected = selectedActivity == activity
+                                    Surface(
+                                        modifier = Modifier.clip(CircleShape).clickable { selectedActivity = activity },
+                                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                                    ) {
+                                        Text(
+                                            text = activity,
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // 3. Duration Chips
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Duration", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(durationOptions) { duration ->
+                                    val isSelected = selectedDuration == duration
+                                    Surface(
+                                        modifier = Modifier.clip(CircleShape).clickable { selectedDuration = duration },
+                                        color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                                    ) {
+                                        Text(
+                                            text = "$duration min",
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // 4. Time Picker
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Start Time", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
+                            OutlinedButton(onClick = {
+                                val now = LocalTime.now()
+                                android.app.TimePickerDialog(
+                                    context,
+                                    { _, hour, minute -> selectedTime = LocalTime.of(hour, minute) },
+                                    now.hour, now.minute, false
+                                ).show()
+                            }) {
+                                val timeText = selectedTime?.format(java.time.format.DateTimeFormatter.ofPattern("hh:mm a")) ?: "Start Manually"
+                                Text(timeText)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            // Using the .ifBlank trick we added earlier!
+                            val finalName = selectedActivity.ifBlank { "Custom Timer" }
+                            timers.add(TimerEvent(finalName, selectedDuration, selectedTime))
+
+                            // Clean up form and close dialog
+                            selectedTime = null
+                            selectedActivity = ""
+                            selectedDuration = durationOptions[2]
+                            showAddTimerDialog = false
+                        }
+                    ) {
+                        Text("Add")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showAddTimerDialog = false
+                        selectedTime = null
+                        selectedActivity = ""
+                        selectedDuration = durationOptions[2]
+                    }) {
+                        Text("Cancel")
+                    }
                 }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Row for selecting start time and adding the timer
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedButton(onClick = {
-                val now = LocalTime.now()
-                TimePickerDialog(
-                    context,
-                    { _, hour, minute -> selectedTime = LocalTime.of(hour, minute) },
-                    now.hour, now.minute, false
-                ).show()
-            }) {
-                val timeText = selectedTime?.format(DateTimeFormatter.ofPattern("hh:mm a")) ?: "Start Manually"
-                Text(timeText)
-            }
-
-            Button(onClick = {
-                // NEW: Safety check! If they leave it blank, give it a default name.
-                val finalName = selectedActivity.ifBlank { "Custom Timer" }
-                timers.add(TimerEvent(finalName, selectedDuration, selectedTime))
-
-                // Reset the form so it's clean for the next timer
-                selectedTime = null
-                selectedActivity = ""
-            }) {
-                Text("Add Timer")
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-        HorizontalDivider()
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Active Timers List
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(timers, key = { it.id }) { timerEvent ->
-                TimerCard(timer = timerEvent, onDelete = { timers.remove(timerEvent) })
-            }
+            )
         }
     }
 }
