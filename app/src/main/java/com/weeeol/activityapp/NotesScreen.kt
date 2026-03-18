@@ -119,7 +119,7 @@ fun NotesScreen(notes: List<Note>, noteDao: NoteDao) { // Updated signature
                 onClick = { showAddNoteDialog = true },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 24.dp, bottom = 120.dp), // Pushed up above your nav bar
+                    .padding(end = 24.dp, bottom = 190.dp), // Pushed up above your nav bar
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             ) {

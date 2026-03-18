@@ -22,12 +22,14 @@ import androidx.compose.material.icons.filled.Brightness7
 import java.time.LocalDate
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.activity.enableEdgeToEdge
 
 
 // 2. The missing MainActivity class! This is what tells Android to draw the screen.
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         setContent {
             // 1. Boot up the database to check the theme
             val context = LocalContext.current

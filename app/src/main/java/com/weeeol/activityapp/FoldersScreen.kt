@@ -107,7 +107,7 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     // We pad the bottom heavily so it sits safely above your custom nav bar
-                    .padding(end = 24.dp, bottom = 120.dp),
+                    .padding(end = 24.dp, bottom = 190.dp),
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             ) {

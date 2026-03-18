@@ -99,7 +99,7 @@ fun TimerScreen(timers: MutableList<TimerEvent>) {
             onClick = { showAddTimerDialog = true },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 24.dp, bottom = 120.dp),
+                .padding(end = 24.dp, bottom = 190.dp),
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
         ) {
