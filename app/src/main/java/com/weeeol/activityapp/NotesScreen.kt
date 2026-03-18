@@ -58,8 +58,13 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+
 @Composable
-fun NotesScreen(notes: MutableList<Note>) {
+fun NotesScreen(notes: List<Note>, noteDao: NoteDao) { // Updated signature
+    val scope = rememberCoroutineScope()
     var titleText by remember { mutableStateOf("") }
     var contentText by remember { mutableStateOf("") }
 
@@ -72,8 +77,8 @@ fun NotesScreen(notes: MutableList<Note>) {
         EditNoteFullscreen(
             note = editingNote!!,
             onBack = { updatedNote ->
-                val index = notes.indexOfFirst { it.id == updatedNote.id }
-                if (index != -1) notes[index] = updatedNote.copy()
+                // Room's REPLACE strategy handles updates automatically!
+                scope.launch(Dispatchers.IO) { noteDao.insertNote(updatedNote) }
                 editingNote = null
             }
         )
@@ -102,7 +107,7 @@ fun NotesScreen(notes: MutableList<Note>) {
                     items(notes, key = { it.id }) { note ->
                         NoteCard(
                             note = note,
-                            onDelete = { notes.remove(note) },
+                            onDelete = {scope.launch(Dispatchers.IO){ noteDao.deleteNote(note) } }, // Delete via DAO
                             onClick = { editingNote = note }
                         )
                     }
@@ -147,10 +152,13 @@ fun NotesScreen(notes: MutableList<Note>) {
                         Button(
                             onClick = {
                                 if (contentText.isNotBlank() || titleText.isNotBlank()) {
-                                    // Add to the top of the list!
-                                    notes.add(0, Note(titleText, contentText))
+                                    // 1. Take a snapshot of the text FIRST
+                                    val newNote = Note(titleText, contentText)
 
-                                    // Clean up and close
+                                    // 2. Send the snapshot to the background
+                                    scope.launch(Dispatchers.IO) { noteDao.insertNote(newNote) }
+
+                                    // 3. Now it is safe to clear the UI
                                     titleText = ""
                                     contentText = ""
                                     showAddNoteDialog = false

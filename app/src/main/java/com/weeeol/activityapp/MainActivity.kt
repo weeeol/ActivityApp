@@ -20,6 +20,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.filled.Brightness4
 import androidx.compose.material.icons.filled.Brightness7
 import java.time.LocalDate
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 
 
 // 2. The missing MainActivity class! This is what tells Android to draw the screen.
@@ -79,12 +81,14 @@ fun ActivityAppMainScreen(isDarkMode: Boolean, onThemeToggle: () -> Unit) {
     }
 
     val timers = remember { mutableStateListOf(*dataManager.loadTimers().toTypedArray()) }
-    val notes = remember { mutableStateListOf(*dataManager.loadNotes().toTypedArray()) }
-    val folders = remember { mutableStateListOf(*dataManager.loadFolders().toTypedArray()) }
+    val database = remember { AppDatabase.getDatabase(context) }
+    val noteDao = database.noteDao()
+    val folderDao = database.folderDao()
+
+    val notes by noteDao.getAllNotes().collectAsState(initial = emptyList())
+    val folders by folderDao.getAllFolders().collectAsState(initial = emptyList())
 
     LaunchedEffect(waterGlasses) { dataManager.saveWaterIntake(waterGlasses) }
-    LaunchedEffect(notes.toList()) { dataManager.saveNotes(notes) }
-    LaunchedEffect(folders.toList()) { dataManager.saveFolders(folders) }
     LaunchedEffect(timers.toList()) { dataManager.saveTimers(timers) }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -93,6 +97,8 @@ fun ActivityAppMainScreen(isDarkMode: Boolean, onThemeToggle: () -> Unit) {
             timers = timers,
             notes = notes,
             folders = folders,
+            noteDao = noteDao,
+            folderDao = folderDao,
             waterGlasses = waterGlasses,
 
             // 2. THE OVERNIGHT CHECK: What if they kept the app open past midnight?
@@ -143,11 +149,13 @@ fun ActivityAppMainScreen(isDarkMode: Boolean, onThemeToggle: () -> Unit) {
 fun MainContent(
     selectedItem: NavItem,
     timers: MutableList<TimerEvent>,
-    notes: MutableList<Note>,
-    folders: MutableList<ProjectFolder>,
+    notes: List<Note>,                 // Changed from MutableList to List
+    folders: List<ProjectFolder>,      // Changed from MutableList to List
+    noteDao: NoteDao,                  // NEW
+    folderDao: FolderDao,              // NEW
     waterGlasses: Int,
     onAddWater: () -> Unit,
-    onResetWater: () -> Unit,  // NEW
+    onResetWater: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -158,10 +166,10 @@ fun MainContent(
         contentAlignment = Alignment.TopStart
     ) {
         when (selectedItem) {
-            // Pass the state into HealthScreen!
             NavItem.Health -> HealthScreen(waterGlasses, onAddWater, onResetWater)
-            NavItem.Notes -> NotesScreen(notes = notes)
-            NavItem.Folders -> FoldersScreen(folders = folders, notes = notes)
+            // Pass the DAOs into the screens!
+            NavItem.Notes -> NotesScreen(notes = notes, noteDao = noteDao)
+            NavItem.Folders -> FoldersScreen(folders = folders, notes = notes, folderDao = folderDao, noteDao = noteDao)
             NavItem.Timer -> TimerScreen(timers = timers)
         }
     }

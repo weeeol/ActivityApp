@@ -45,9 +45,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
 
 @Composable
-fun FoldersScreen(folders: MutableList<ProjectFolder>, notes: MutableList<Note>) {
+fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: FolderDao, noteDao: NoteDao) {
+    val scope = rememberCoroutineScope()
     var newFolderName by remember { mutableStateOf("") }
     var newFolderEmoji by remember { mutableStateOf("") }
 
@@ -61,6 +65,7 @@ fun FoldersScreen(folders: MutableList<ProjectFolder>, notes: MutableList<Note>)
         FolderDetailScreen(
             folder = openedFolder!!,
             notes = notes,
+            noteDao = noteDao, // <-- ADD THIS LINE
             onBack = { openedFolder = null }
         )
     } else {
@@ -159,9 +164,14 @@ fun FoldersScreen(folders: MutableList<ProjectFolder>, notes: MutableList<Note>)
                         Button(
                             onClick = {
                                 if (newFolderName.isNotBlank()) {
+                                    // 1. Take a snapshot FIRST
                                     val finalEmoji = newFolderEmoji.ifBlank { "📂" }
-                                    folders.add(ProjectFolder(newFolderName, finalEmoji))
+                                    val newFolder = ProjectFolder(newFolderName, finalEmoji)
 
+                                    // 2. Send to background
+                                    scope.launch(Dispatchers.IO) { folderDao.insertFolder(newFolder) }
+
+                                    // 3. Safe to clear
                                     newFolderName = ""
                                     newFolderEmoji = ""
                                     showAddDialog = false
@@ -194,9 +204,13 @@ fun FoldersScreen(folders: MutableList<ProjectFolder>, notes: MutableList<Note>)
                     confirmButton = {
                         Button(
                             onClick = {
-                                notes.removeAll { it.folderId == folderToDelete?.id }
-                                folders.remove(folderToDelete)
-                                folderToDelete = null
+                                scope.launch(Dispatchers.IO) {
+                                    // 1. Tell the database to wipe all notes matching this folder ID
+                                    noteDao.deleteNotesByFolder(folderToDelete!!.id)
+                                    // 2. Tell the database to delete the folder
+                                    folderDao.deleteFolder(folderToDelete!!)
+                                    folderToDelete = null
+                                }
                             },
                             colors = androidx.compose.material3.ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.error
@@ -218,20 +232,23 @@ fun FoldersScreen(folders: MutableList<ProjectFolder>, notes: MutableList<Note>)
 
 // NEW: The screen that shows when you open a folder
 @Composable
-fun FolderDetailScreen(folder: ProjectFolder, notes: MutableList<Note>, onBack: () -> Unit) {
+fun FolderDetailScreen(folder: ProjectFolder, notes: List<Note>, noteDao: NoteDao, onBack: () -> Unit) {
     var titleText by remember { mutableStateOf("") }
     var contentText by remember { mutableStateOf("") }
     var editingNote by remember { mutableStateOf<Note?>(null) }
 
-    // MAGIC: Filter the main notes list so we ONLY see notes for this folder
+    // NEW: We need a coroutine scope to talk to the database
+    val scope = rememberCoroutineScope()
+
+    // Filter the main notes list so we ONLY see notes for this folder
     val folderNotes = notes.filter { it.folderId == folder.id }
 
     if (editingNote != null) {
         EditNoteFullscreen(
             note = editingNote!!,
             onBack = { updatedNote ->
-                val index = notes.indexOfFirst { it.id == updatedNote.id }
-                if (index != -1) notes[index] = updatedNote.copy()
+                // Swap out the old notes[index] logic for a database update
+                scope.launch(Dispatchers.IO) { noteDao.insertNote(updatedNote) }
                 editingNote = null
             }
         )
@@ -262,8 +279,13 @@ fun FolderDetailScreen(folder: ProjectFolder, notes: MutableList<Note>, onBack: 
             Button(
                 onClick = {
                     if (contentText.isNotBlank() || titleText.isNotBlank()) {
-                        // NEW: Notice we pass the folder.id here to lock it to this folder!
-                        notes.add(0, Note(titleText, contentText, folder.id))
+                        // 1. Take a snapshot FIRST (Don't forget the folder.id!)
+                        val newNote = Note(titleText, contentText, folder.id)
+
+                        // 2. Send to background
+                        scope.launch(Dispatchers.IO) { noteDao.insertNote(newNote) }
+
+                        // 3. Safe to clear
                         titleText = ""
                         contentText = ""
                     }
@@ -281,8 +303,11 @@ fun FolderDetailScreen(folder: ProjectFolder, notes: MutableList<Note>, onBack: 
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(folderNotes, key = { it.id }) { note ->
-                    // Reuse our beautiful NoteCard
-                    NoteCard(note = note, onDelete = { notes.remove(note) }, onClick = { editingNote = note })
+                    NoteCard(
+                        note = note,
+                        onDelete = {scope.launch(Dispatchers.IO) { noteDao.deleteNote(note) } }, // Delete via DAO
+                        onClick = { editingNote = note }
+                    )
                 }
             }
         }

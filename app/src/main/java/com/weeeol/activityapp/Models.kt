@@ -11,7 +11,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.vector.ImageVector
 import java.time.LocalTime
-
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 
 enum class NavItem(val title: String, val icon: ImageVector) {
     Health("Health", Icons.Default.FavoriteBorder),
@@ -25,15 +26,16 @@ data class Particle(
     val radius: Float
 )
 
+@Entity(tableName = "notes")
 data class Note(
     var title: String,
     var content: String,
     var folderId: String? = null,
     var timestamp: String = java.text.SimpleDateFormat("MMM dd, yyyy • hh:mm a", java.util.Locale.getDefault()).format(java.util.Date()),
-
-    // NEW: The flag to track IDE mode! Defaults to false for normal notes.
     var isCodeMode: Boolean = false,
 
+    // The unique key for the note
+    @PrimaryKey
     val id: String = java.util.UUID.randomUUID().toString()
 )
 
@@ -48,9 +50,13 @@ class TimerEvent(
     var isRunning by mutableStateOf(false)
 }
 
+@Entity(tableName = "folders")
 data class ProjectFolder(
     var name: String,
     var emoji: String = "📂",
+
+    // Tell Room that this ID is the unique key for this row
+    @PrimaryKey
     val id: String = java.util.UUID.randomUUID().toString()
 )
 
