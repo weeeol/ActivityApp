@@ -43,15 +43,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.filled.Add
 
 @Composable
 fun FoldersScreen(folders: MutableList<ProjectFolder>, notes: MutableList<Note>) {
     var newFolderName by remember { mutableStateOf("") }
-
-    // NEW: State for the emoji input field
     var newFolderEmoji by remember { mutableStateOf("") }
 
+    // NEW: State to trigger the popup window!
+    var showAddDialog by remember { mutableStateOf(false) }
+
     var openedFolder by remember { mutableStateOf<ProjectFolder?>(null) }
+    var folderToDelete by remember { mutableStateOf<ProjectFolder?>(null) }
 
     if (openedFolder != null) {
         FolderDetailScreen(
@@ -60,71 +65,132 @@ fun FoldersScreen(folders: MutableList<ProjectFolder>, notes: MutableList<Note>)
             onBack = { openedFolder = null }
         )
     } else {
-        Column(modifier = Modifier.fillMaxSize().padding(top = 16.dp)) {
-            Text(text = "My Folders", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 16.dp))
-            Spacer(modifier = Modifier.height(16.dp))
+        // We use a Box here so we can float the Add button over the grid
+        Box(modifier = Modifier.fillMaxSize()) {
 
-            // --- 2. UPDATED FOLDER INPUT ---
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Main name field (now takes up less width)
-                OutlinedTextField(
-                    value = newFolderName,
-                    onValueChange = { newFolderName = it },
-                    label = { Text("Folder Name") },
-                    modifier = Modifier.weight(1f), // Takes the remaining space
-                    singleLine = true
+            Column(modifier = Modifier.fillMaxSize().padding(top = 16.dp)) {
+                Text(
+                    text = "My Folders",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(horizontal = 16.dp)
                 )
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-                // NEW: Small input field for a single emoji
-                OutlinedTextField(
-                    value = newFolderEmoji,
-                    onValueChange = { if (it.length <= 2) newFolderEmoji = it }, // Limits to 1-2 characters
-                    label = { Text("Emoji") },
-                    placeholder = { Text("📂") },
-                    modifier = Modifier.width(75.dp),
-                    singleLine = true
-                )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Button(
-                    onClick = {
-                        if (newFolderName.isNotBlank()) {
-                            // Use the emoji they typed, or fall back to the placeholder
-                            val finalEmoji = newFolderEmoji.ifBlank { "📂" }
-                            folders.add(ProjectFolder(newFolderName, finalEmoji))
-                            newFolderName = ""
-                            newFolderEmoji = "" // Clear the emoji field
-                        }
-                    },
-                    modifier = Modifier.padding(top = 6.dp)
-                ) { Text("Add") }
+                // The Grid (Now with more breathing room at the top!)
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(bottom = 120.dp)
+                ) {
+                    items(folders, key = { it.id }) { folder ->
+                        val noteCount = notes.count { it.folderId == folder.id }
+                        FolderCard(
+                            folder = folder,
+                            noteCount = noteCount,
+                            onDelete = { folderToDelete = folder },
+                            onClick = { openedFolder = folder }
+                        )
+                    }
+                }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                // THIS PUSHES THE LAST ITEM UP ABOVE THE NAV BAR WHEN YOU SCROLL!
-                contentPadding = PaddingValues(bottom = 120.dp)
+            // --- THE NEW FLOATING ADD BUTTON ---
+            FloatingActionButton(
+                onClick = { showAddDialog = true },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    // We pad the bottom heavily so it sits safely above your custom nav bar
+                    .padding(end = 24.dp, bottom = 120.dp),
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             ) {
-                items(folders, key = { it.id }) { folder ->
-                    val noteCount = notes.count { it.folderId == folder.id }
-                    FolderCard(
-                        folder = folder,
-                        noteCount = noteCount,
-                        onDelete = { folders.remove(folder) },
-                        onClick = { openedFolder = folder }
-                    )
-                }
+                Icon(imageVector = Icons.Default.Add, contentDescription = "Add Folder")
+            }
+
+            // --- THE ADD FOLDER POP-UP WINDOW ---
+            if (showAddDialog) {
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { showAddDialog = false },
+                    title = { Text("Create New Folder") },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            OutlinedTextField(
+                                value = newFolderName,
+                                onValueChange = { newFolderName = it },
+                                label = { Text("Folder Name") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            OutlinedTextField(
+                                value = newFolderEmoji,
+                                onValueChange = { if (it.length <= 2) newFolderEmoji = it },
+                                label = { Text("Emoji") },
+                                placeholder = { Text("📂") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                if (newFolderName.isNotBlank()) {
+                                    val finalEmoji = newFolderEmoji.ifBlank { "📂" }
+                                    folders.add(ProjectFolder(newFolderName, finalEmoji))
+
+                                    // Reset and close!
+                                    newFolderName = ""
+                                    newFolderEmoji = ""
+                                    showAddDialog = false
+                                }
+                            }
+                        ) {
+                            Text("Create")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = {
+                            showAddDialog = false
+                            newFolderName = ""
+                            newFolderEmoji = ""
+                        }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
+
+            // --- THE DELETE CONFIRMATION DIALOG (From earlier) ---
+            if (folderToDelete != null) {
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { folderToDelete = null },
+                    title = { Text("Delete Folder?") },
+                    text = {
+                        Text("Are you sure you want to delete '${folderToDelete?.name}'? All notes inside this folder will also be permanently deleted.")
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                notes.removeAll { it.folderId == folderToDelete?.id }
+                                folders.remove(folderToDelete)
+                                folderToDelete = null
+                            },
+                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Text("Delete")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { folderToDelete = null }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
             }
         }
     }
