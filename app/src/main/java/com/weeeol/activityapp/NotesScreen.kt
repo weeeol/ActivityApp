@@ -47,6 +47,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
 
 @Composable
 fun NotesScreen(notes: MutableList<Note>) {
@@ -182,26 +188,77 @@ fun NoteCard(note: Note, onDelete: () -> Unit, onClick: () -> Unit) {
 @Composable
 fun EditNoteFullscreen(note: Note, onBack: (Note) -> Unit) {
     var tempTitle by remember { mutableStateOf(note.title) }
-    var tempContent by remember { mutableStateOf(note.content) }
+
+    // 1. THE UPGRADE: TextFieldValue tracks the cursor position and selection!
+    var tempContent by remember { mutableStateOf(TextFieldValue(note.content)) }
     var tempIsCodeMode by remember { mutableStateOf(note.isCodeMode) }
 
-    // THE FIX: Use MaterialTheme colors instead of hardcoded HEX colors!
     val backgroundColor = if (tempIsCodeMode) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.background
     val textColor = MaterialTheme.colorScheme.onSurface
     val titleColor = if (tempIsCodeMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
     val fontFamily = if (tempIsCodeMode) FontFamily.Monospace else FontFamily.Default
     val scrollState = rememberScrollState()
 
+    // --- NEW: HIGHLIGHT LOGIC ---
+    val highlightColor = MaterialTheme.colorScheme.primaryContainer
+
+    // 2. Find the word the cursor is touching
+    val activeWord = remember(tempContent) {
+        val text = tempContent.text
+        val selection = tempContent.selection
+
+        if (selection.collapsed) { // Cursor is just resting somewhere
+            val cursor = selection.start
+            val regex = Regex("\\w+")
+            regex.findAll(text).firstOrNull { cursor in it.range.first..it.range.last + 1 }?.value ?: ""
+        } else { // User actively highlighted a chunk of text
+            text.substring(selection.start, selection.end)
+        }
+    }
+
+    // 3. Paint the highlights over matching words!
+    val codeVisualTransformation = remember(activeWord, tempIsCodeMode) {
+        VisualTransformation { text ->
+            val annotatedString = buildAnnotatedString {
+                append(text.text)
+
+                // Only highlight if it's an actual word (letters/numbers)
+                if (tempIsCodeMode && activeWord.isNotBlank() && activeWord.matches(Regex("\\w+"))) {
+                    var startIndex = 0
+                    while (startIndex < text.length) {
+                        val index = text.indexOf(activeWord, startIndex)
+                        if (index == -1) break
+
+                        // Ensure it's a whole word match (so 'in' doesn't highlight inside 'print')
+                        val isStartBoundary = index == 0 || !text[index - 1].isLetterOrDigit()
+                        val isEndBoundary = index + activeWord.length == text.length || !text[index + activeWord.length].isLetterOrDigit()
+
+                        if (isStartBoundary && isEndBoundary) {
+                            addStyle(
+                                style = SpanStyle(background = highlightColor),
+                                start = index,
+                                end = index + activeWord.length
+                            )
+                        }
+                        startIndex = index + activeWord.length
+                    }
+                }
+            }
+            TransformedText(annotatedString, OffsetMapping.Identity)
+        }
+    }
+    // ----------------------------
+
     Column(modifier = Modifier.fillMaxSize().background(backgroundColor)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(8.dp),
-            // 1. Change this to Start so everything clusters on the left
             horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = {
                 note.title = tempTitle
-                note.content = tempContent
+                // Notice we save .text from the TextFieldValue here!
+                note.content = tempContent.text
                 note.isCodeMode = tempIsCodeMode
                 note.timestamp = java.text.SimpleDateFormat("MMM dd, yyyy • hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())
                 onBack(note)
@@ -209,10 +266,8 @@ fun EditNoteFullscreen(note: Note, onBack: (Note) -> Unit) {
                 Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = textColor)
             }
 
-            // 2. Add a little breathing room between the back arrow and the switch
             Spacer(modifier = Modifier.width(8.dp))
 
-            // The Code Mode Toggle (Now sits safely on the left side!)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(text = "Code Mode", color = textColor, style = MaterialTheme.typography.labelMedium)
                 Spacer(modifier = Modifier.width(8.dp))
@@ -228,7 +283,6 @@ fun EditNoteFullscreen(note: Note, onBack: (Note) -> Unit) {
             onValueChange = { tempTitle = it },
             textStyle = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold, fontFamily = fontFamily),
             placeholder = { Text("Title", style = MaterialTheme.typography.headlineMedium, color = Color.Gray) },
-            // THE FIX: Explicitly set the focused/unfocused text colors here
             colors = TextFieldDefaults.colors(
                 focusedTextColor = titleColor,
                 unfocusedTextColor = titleColor,
@@ -246,27 +300,27 @@ fun EditNoteFullscreen(note: Note, onBack: (Note) -> Unit) {
                 .fillMaxSize()
                 .verticalScroll(scrollState)
         ) {
-            // 3. Only show the line numbers if the switch is flipped
             if (tempIsCodeMode) {
-                // Count the lines and create a string like "1\n2\n3"
-                val lineCount = tempContent.count { it == '\n' } + 1
+                // Update line counter to read from the TextFieldValue
+                val lineCount = tempContent.text.count { it == '\n' } + 1
                 val lineNumbers = (1..lineCount).joinToString("\n")
 
                 Text(
                     text = lineNumbers,
                     style = MaterialTheme.typography.bodyLarge.copy(fontFamily = fontFamily),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), // Faded text
-                    textAlign = TextAlign.End, // Align numbers to the right
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                    textAlign = TextAlign.End,
                     modifier = Modifier
-                        .padding(start = 16.dp, top = 16.dp) // Matches the TextField's default inner padding perfectly
-                        .width(28.dp) // Gives the numbers enough room up to 999 lines
+                        .padding(start = 16.dp, top = 16.dp)
+                        .width(28.dp)
                 )
             }
 
-            // 4. Your existing TextField
             TextField(
+                // Hook up the new TextFieldValue and the Visual Transformation!
                 value = tempContent,
                 onValueChange = { tempContent = it },
+                visualTransformation = if (tempIsCodeMode) codeVisualTransformation else VisualTransformation.None,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = fontFamily),
                 placeholder = { Text("Write your code snippet...", color = Color.Gray) },
                 colors = TextFieldDefaults.colors(
