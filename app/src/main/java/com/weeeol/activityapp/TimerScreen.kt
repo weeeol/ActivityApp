@@ -145,8 +145,7 @@ fun TimerScreen(timers: MutableList<TimerEvent>){
 
             Button(onClick = {
                 // NEW: Safety check! If they leave it blank, give it a default name.
-                val finalName = if (selectedActivity.isNotBlank()) selectedActivity else "Custom Timer"
-
+                val finalName = selectedActivity.ifBlank { "Custom Timer" }
                 timers.add(TimerEvent(finalName, selectedDuration, selectedTime))
 
                 // Reset the form so it's clean for the next timer
@@ -184,7 +183,6 @@ fun TimerCard(timer: TimerEvent, onDelete: () -> Unit) {
                 val now = LocalTime.now()
 
                 // FIXED: Start ONLY when the exact hour and minute match!
-                // This prevents instant starts from AM/PM mixups or past times.
                 if (now.hour == timer.scheduledTime.hour && now.minute == timer.scheduledTime.minute) {
                     timer.isRunning = true
                     break // Stop watching the clock once we start
