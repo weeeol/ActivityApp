@@ -96,7 +96,7 @@ fun FoldersScreen(folders: MutableList<ProjectFolder>, notes: MutableList<Note>)
                     onClick = {
                         if (newFolderName.isNotBlank()) {
                             // Use the emoji they typed, or fall back to the placeholder
-                            val finalEmoji = if (newFolderEmoji.isNotBlank()) newFolderEmoji else "📂"
+                            val finalEmoji = newFolderEmoji.ifBlank { "📂" }
                             folders.add(ProjectFolder(newFolderName, finalEmoji))
                             newFolderName = ""
                             newFolderEmoji = "" // Clear the emoji field
@@ -211,38 +211,41 @@ fun FolderCard(folder: ProjectFolder, noteCount: Int, onDelete: () -> Unit, onCl
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            // THE NEW VISUAL HEADER SECTION
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically // Center vertically to align icon and button
-            ) {
-                // THE LAYERING MAGIC!
+        Box(modifier = Modifier.fillMaxWidth()) {
+
+            // The main content of the card
+            Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+
+                // Centered Folder Image & Emoji
                 Box(
-                    contentAlignment = Alignment.Center // Centers the emoji in the middle of the box
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Layer 1: The Modern Blue Folder Image from your drawable resource
                     Image(
                         painter = painterResource(id = R.drawable.ic_folder_blue),
                         contentDescription = "Folder",
-                        modifier = Modifier.size(150.dp) // Making it slightly larger for visibility
+                        modifier = Modifier.size(100.dp) // Scaled down from 150dp so it fits the grid better!
                     )
-
-                    // Layer 2: The Emoji placed perfectly on top in the middle
                     Text(
                         text = folder.emoji,
-                        style = MaterialTheme.typography.displaySmall // Use a good size for the emoji
+                        style = MaterialTheme.typography.displaySmall
                     )
                 }
 
-                IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
-                    Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = Color.Gray)
-                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(text = folder.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(text = if (noteCount == 1) "1 item" else "$noteCount items", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
             }
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(text = folder.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text(text = if (noteCount == 1) "1 item" else "$noteCount items", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+
+            // The Delete Button, pinned to the absolute top-right corner of the Card
+            IconButton(
+                onClick = onDelete, // This will now trigger the pop-up we added earlier!
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+            ) {
+                Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = Color.Gray)
+            }
         }
     }
 }
