@@ -56,7 +56,7 @@ fun ParticleExplosion(
     // 2. The "Game Loop" timer (goes from 0.0 to 1.0)
     val progress = remember { Animatable(0f) }
 
-    LaunchedEffect(isTriggered) {
+    LaunchedEffect(true) {
         progress.snapTo(0f)
         progress.animateTo(
             targetValue = 1f,
