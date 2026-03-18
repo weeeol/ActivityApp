@@ -116,7 +116,29 @@ fun FoldersScreen(folders: MutableList<ProjectFolder>, notes: MutableList<Note>)
                     onDismissRequest = { showAddDialog = false },
                     title = { Text("Create New Folder") },
                     text = {
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        // Notice I added horizontalAlignment here to center the preview!
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+
+                            // --- THE LIVE PREVIEW ---
+                            Box(contentAlignment = Alignment.Center) {
+                                androidx.compose.foundation.Image(
+                                    painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_folder_blue),
+                                    contentDescription = "Folder Preview",
+                                    modifier = Modifier.size(100.dp)
+                                )
+                                Text(
+                                    // Shows the typed emoji, or the default if empty
+                                    text = newFolderEmoji.ifBlank { "📂" },
+                                    style = MaterialTheme.typography.displaySmall
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            // --- THE INPUT FIELDS ---
                             OutlinedTextField(
                                 value = newFolderName,
                                 onValueChange = { newFolderName = it },
@@ -141,7 +163,6 @@ fun FoldersScreen(folders: MutableList<ProjectFolder>, notes: MutableList<Note>)
                                     val finalEmoji = newFolderEmoji.ifBlank { "📂" }
                                     folders.add(ProjectFolder(newFolderName, finalEmoji))
 
-                                    // Reset and close!
                                     newFolderName = ""
                                     newFolderEmoji = ""
                                     showAddDialog = false
