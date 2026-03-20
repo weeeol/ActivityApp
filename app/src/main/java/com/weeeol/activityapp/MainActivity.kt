@@ -22,14 +22,15 @@ import androidx.compose.material.icons.filled.Brightness7
 import java.time.LocalDate
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.activity.enableEdgeToEdge
+import android.app.Activity
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 
 
 // 2. The missing MainActivity class! This is what tells Android to draw the screen.
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContent {
             // 1. Boot up the database to check the theme
             val context = LocalContext.current
@@ -63,6 +64,25 @@ class MainActivity : ComponentActivity() {
 fun ActivityAppMainScreen(isDarkMode: Boolean, onThemeToggle: () -> Unit) {
     val context = LocalContext.current
     val dataManager = remember { DataManager(context) }
+
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+
+            // 1. Make the grey boxes completely transparent
+            window.statusBarColor = android.graphics.Color.TRANSPARENT
+            window.navigationBarColor = android.graphics.Color.TRANSPARENT
+
+            // 2. Tell Android to stretch your app all the way to the absolute edges of the screen
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+
+            // 3. Flip the Time/Battery icons to black if in Light Mode, and white if in Dark Mode
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !isDarkMode
+            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !isDarkMode
+        }
+    }
+    // -----------------------------
 
     var selectedItem by remember { mutableStateOf(NavItem.Health) }
 
