@@ -41,7 +41,7 @@ interface NoteDao {
 }
 
 // --- 3. THE ACTUAL DATABASE ---
-@Database(entities = [ProjectFolder::class, Note::class], version = 1, exportSchema = false)
+@Database(entities = [ProjectFolder::class, Note::class], version = 1, exportSchema = true)
 abstract class AppDatabase : RoomDatabase() {
 
     // Connect the DAOs
