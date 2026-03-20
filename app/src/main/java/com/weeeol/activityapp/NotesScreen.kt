@@ -97,6 +97,7 @@ fun NotesScreen(notes: List<Note>, noteDao: NoteDao) {
                 Text(
                     text = "Notes",
                     style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
 

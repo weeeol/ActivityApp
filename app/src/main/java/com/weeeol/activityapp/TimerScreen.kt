@@ -76,6 +76,7 @@ fun TimerScreen(timers: MutableList<TimerEvent>) {
             Text(
                 text = "My Timers",
                 style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
 

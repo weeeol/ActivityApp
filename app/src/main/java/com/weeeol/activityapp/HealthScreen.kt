@@ -33,6 +33,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.text.font.FontWeight
 
 @Composable
 fun ParticleExplosion(
@@ -120,6 +121,7 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
         Text(
             text = "Today's Activity",
             style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.Bold,
             modifier = Modifier
                 .padding(bottom = 8.dp)
                 .align(Alignment.Start)
