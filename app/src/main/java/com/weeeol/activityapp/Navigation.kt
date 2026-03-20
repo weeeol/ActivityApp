@@ -102,15 +102,7 @@ fun FloatingNavigationBar(
             // 1. THE OUTLINE BLOOM MAGIC
             .drawBehind {
                 drawIntoCanvas { canvas ->
-                    val paint = Paint().apply {
-                        color = glowColor
-                        style = PaintingStyle.Stroke
-                        strokeWidth = 6.dp.toPx() // The thickness of the glow
-                    }
 
-                    // Blurs the stroke to create the soft bloom effect
-                    paint.asFrameworkPaint().maskFilter =
-                        android.graphics.BlurMaskFilter(16.dp.toPx(), android.graphics.BlurMaskFilter.Blur.NORMAL)
 
                     // Draw the glowing outline exactly where the border will be
                     canvas.drawRoundRect(

@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import android.app.Activity
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 
 class MainActivity : ComponentActivity() {
@@ -106,8 +107,8 @@ fun ActivityAppMainScreen(isDarkMode: Boolean, onThemeToggle: () -> Unit) {
     val noteDao = database.noteDao()
     val folderDao = database.folderDao()
 
-    val notes by noteDao.getAllNotes().collectAsState(initial = emptyList())
-    val folders by folderDao.getAllFolders().collectAsState(initial = emptyList())
+    val notes by noteDao.getAllNotes().collectAsStateWithLifecycle(initialValue = emptyList())
+    val folders by folderDao.getAllFolders().collectAsStateWithLifecycle(initialValue = emptyList())
 
     LaunchedEffect(waterGlasses) { dataManager.saveWaterIntake(waterGlasses) }
     LaunchedEffect(timers.toList()) { dataManager.saveTimers(timers) }
