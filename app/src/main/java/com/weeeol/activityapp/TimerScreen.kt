@@ -72,10 +72,10 @@ fun TimerScreen(timers: MutableList<TimerEvent>) {
     Box(modifier = Modifier.fillMaxSize()) {
 
         // --- MAIN SCREEN CONTENT ---
-        Column(modifier = Modifier.fillMaxSize().padding(top = 16.dp)) {
+        Column(modifier = Modifier.fillMaxSize().padding(top = 8.dp)) {
             Text(
                 text = "My Timers",
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.headlineLarge,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
 

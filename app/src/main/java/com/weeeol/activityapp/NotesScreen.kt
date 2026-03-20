@@ -61,60 +61,98 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Close
 
 @Composable
-fun NotesScreen(notes: List<Note>, noteDao: NoteDao) { // Updated signature
+fun NotesScreen(notes: List<Note>, noteDao: NoteDao) {
     val scope = rememberCoroutineScope()
+
     var titleText by remember { mutableStateOf("") }
     var contentText by remember { mutableStateOf("") }
-
-    // NEW: State to trigger the popup window!
     var showAddNoteDialog by remember { mutableStateOf(false) }
-
     var editingNote by remember { mutableStateOf<Note?>(null) }
+
+    // --- NEW: SEARCH LOGIC ---
+    var searchQuery by remember { mutableStateOf("") }
+
+    // This dynamically filters the list instantly as you type!
+    val filteredNotes = notes.filter { note ->
+        note.title.contains(searchQuery, ignoreCase = true) ||
+                note.content.contains(searchQuery, ignoreCase = true)
+    }
 
     if (editingNote != null) {
         EditNoteFullscreen(
             note = editingNote!!,
             onBack = { updatedNote ->
-                // Room's REPLACE strategy handles updates automatically!
                 scope.launch(Dispatchers.IO) { noteDao.insertNote(updatedNote) }
                 editingNote = null
             }
         )
     } else {
-        // We wrap the screen in a Box to float the button over the grid
         Box(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize().padding(top = 8.dp)) {
 
-            Column(modifier = Modifier.fillMaxSize().padding(top = 16.dp)) {
                 Text(
                     text = "Notes",
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.headlineLarge,
                     modifier = Modifier.padding(horizontal = 16.dp)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // --- NEW: THE SEARCH BAR ---
+                TextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Search your notes...") },
+                    leadingIcon = {
+                        Icon(imageVector = Icons.Default.Search, contentDescription = "Search", tint = Color.Gray)
+                    },
+                    trailingIcon = {
+                        // Only show the clear button if there is text!
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(imageVector = Icons.Default.Close, contentDescription = "Clear", tint = Color.Gray)
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    singleLine = true,
+                    shape = RoundedCornerShape(24.dp), // Makes it a nice rounded pill
+                    colors = TextFieldDefaults.colors(
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // The Grid (Now takes up the whole screen!)
+                // The Grid (Now uses the FILTERED notes!)
                 LazyVerticalStaggeredGrid(
                     columns = StaggeredGridCells.Fixed(2),
                     modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                     verticalItemSpacing = 8.dp,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    // Adds padding to the bottom so the last notes don't get hidden behind the nav bar
                     contentPadding = PaddingValues(bottom = 120.dp)
                 ) {
-                    items(notes, key = { it.id }) { note ->
+                    // Make sure this says 'filteredNotes' and not just 'notes'
+                    items(filteredNotes, key = { it.id }) { note ->
                         NoteCard(
                             note = note,
-                            onDelete = {scope.launch(Dispatchers.IO){ noteDao.deleteNote(note) } }, // Delete via DAO
+                            onDelete = { scope.launch(Dispatchers.IO) { noteDao.deleteNote(note) } },
                             onClick = { editingNote = note }
                         )
                     }
                 }
             }
 
-            // --- THE NEW FLOATING ADD BUTTON ---
+            // ... (Your existing FloatingActionButton and AlertDialog stay exactly the same down here!)
             FloatingActionButton(
                 onClick = { showAddNoteDialog = true },
                 modifier = Modifier

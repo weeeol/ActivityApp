@@ -76,10 +76,10 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
         // We use a Box here so we can float the Add button over the grid
         Box(modifier = Modifier.fillMaxSize()) {
 
-            Column(modifier = Modifier.fillMaxSize().padding(top = 16.dp)) {
+            Column(modifier = Modifier.fillMaxSize().padding(top = 8.dp)) {
                 Text(
                     text = "My Folders",
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.headlineLarge,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
 
