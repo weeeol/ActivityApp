@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
+import androidx.compose.material.icons.filled.Edit
 
 @Composable
 fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: FolderDao, noteDao: NoteDao) {
@@ -60,6 +61,9 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
 
     var openedFolder by remember { mutableStateOf<ProjectFolder?>(null) }
     var folderToDelete by remember { mutableStateOf<ProjectFolder?>(null) }
+    var folderToEdit by remember { mutableStateOf<ProjectFolder?>(null) }
+    var nameError by remember { mutableStateOf<String?>(null) }
+
 
     if (openedFolder != null) {
         FolderDetailScreen(
@@ -95,6 +99,7 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
                             folder = folder,
                             noteCount = noteCount,
                             onDelete = { folderToDelete = folder },
+                            onEdit = { folderToEdit = folder }, // <-- NEW: Triggers the edit popup
                             onClick = { openedFolder = folder }
                         )
                     }
@@ -117,10 +122,12 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
             // --- THE ADD FOLDER POP-UP WINDOW ---
             if (showAddDialog) {
                 androidx.compose.material3.AlertDialog(
-                    onDismissRequest = { showAddDialog = false },
+                    onDismissRequest = {
+                        showAddDialog = false
+                        nameError = null // Clear error on dismiss
+                    },
                     title = { Text("Create New Folder") },
                     text = {
-                        // Notice I added horizontalAlignment here to center the preview!
                         Column(
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
@@ -128,13 +135,12 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
 
                             // --- THE LIVE PREVIEW ---
                             Box(contentAlignment = Alignment.Center) {
-                                androidx.compose.foundation.Image(
-                                    painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_folder_blue),
+                                Image(
+                                    painter = painterResource(id = R.drawable.ic_folder_blue),
                                     contentDescription = "Folder Preview",
                                     modifier = Modifier.size(100.dp)
                                 )
                                 Text(
-                                    // Shows the typed emoji, or the default if empty
                                     text = newFolderEmoji.ifBlank { "📂" },
                                     style = MaterialTheme.typography.displaySmall
                                 )
@@ -145,10 +151,21 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
                             // --- THE INPUT FIELDS ---
                             OutlinedTextField(
                                 value = newFolderName,
-                                onValueChange = { newFolderName = it },
+                                onValueChange = {
+                                    newFolderName = it
+                                    nameError = null // Hide error as soon as they start typing again!
+                                },
                                 label = { Text("Folder Name") },
                                 singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                // NEW: Tell the text field to turn red if there is an error
+                                isError = nameError != null,
+                                // NEW: Show the error message text below the box
+                                supportingText = {
+                                    if (nameError != null) {
+                                        Text(text = nameError!!, color = MaterialTheme.colorScheme.error)
+                                    }
+                                }
                             )
                             OutlinedTextField(
                                 value = newFolderEmoji,
@@ -163,18 +180,28 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
                     confirmButton = {
                         Button(
                             onClick = {
-                                if (newFolderName.isNotBlank()) {
-                                    // 1. Take a snapshot FIRST
-                                    val finalEmoji = newFolderEmoji.ifBlank { "📂" }
-                                    val newFolder = ProjectFolder(newFolderName, finalEmoji)
+                                val trimmedName = newFolderName.trim()
 
-                                    // 2. Send to background
-                                    scope.launch(Dispatchers.IO) { folderDao.insertFolder(newFolder) }
+                                if (trimmedName.isNotBlank()) {
+                                    // 1. Check if the folder name already exists (ignoring upper/lowercase!)
+                                    val isDuplicate = folders.any { it.name.equals(trimmedName, ignoreCase = true) }
 
-                                    // 3. Safe to clear
-                                    newFolderName = ""
-                                    newFolderEmoji = ""
-                                    showAddDialog = false
+                                    if (isDuplicate) {
+                                        // 2. It exists! Trigger the error and stop the save.
+                                        nameError = "A folder with this name already exists"
+                                    } else {
+                                        // 3. It's unique! Safe to save.
+                                        val finalEmoji = newFolderEmoji.ifBlank { "📂" }
+                                        val newFolder = ProjectFolder(trimmedName, finalEmoji)
+
+                                        scope.launch(Dispatchers.IO) { folderDao.insertFolder(newFolder) }
+
+                                        // Clean up form and close
+                                        newFolderName = ""
+                                        newFolderEmoji = ""
+                                        nameError = null
+                                        showAddDialog = false
+                                    }
                                 }
                             }
                         ) {
@@ -186,6 +213,7 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
                             showAddDialog = false
                             newFolderName = ""
                             newFolderEmoji = ""
+                            nameError = null
                         }) {
                             Text("Cancel")
                         }
@@ -223,6 +251,89 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
                         TextButton(onClick = { folderToDelete = null }) {
                             Text("Cancel")
                         }
+                    }
+                )
+            }
+            // --- THE EDIT FOLDER POP-UP WINDOW ---
+            if (folderToEdit != null) {
+                // Pre-fill the text boxes with the folder's current data
+                var editName by remember { mutableStateOf(folderToEdit!!.name) }
+                var editEmoji by remember { mutableStateOf(folderToEdit!!.emoji) }
+                var editNameError by remember { mutableStateOf<String?>(null) }
+
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { folderToEdit = null },
+                    title = { Text("Edit Folder") },
+                    text = {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            // Live Preview
+                            Box(contentAlignment = Alignment.Center) {
+                                androidx.compose.foundation.Image(
+                                    painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_folder_blue),
+                                    contentDescription = "Folder Preview",
+                                    modifier = Modifier.size(100.dp)
+                                )
+                                Text(
+                                    text = editEmoji.ifBlank { "📂" },
+                                    style = MaterialTheme.typography.displaySmall
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            OutlinedTextField(
+                                value = editName,
+                                onValueChange = {
+                                    editName = it
+                                    editNameError = null
+                                },
+                                label = { Text("Folder Name") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                isError = editNameError != null,
+                                supportingText = {
+                                    if (editNameError != null) Text(text = editNameError!!, color = MaterialTheme.colorScheme.error)
+                                }
+                            )
+                            OutlinedTextField(
+                                value = editEmoji,
+                                onValueChange = { if (it.length <= 2) editEmoji = it },
+                                label = { Text("Emoji") },
+                                placeholder = { Text("📂") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                val trimmedName = editName.trim()
+                                if (trimmedName.isNotBlank()) {
+                                    // Check for duplicates, but ignore the folder we are currently editing!
+                                    val isDuplicate = folders.any { it.name.equals(trimmedName, ignoreCase = true) && it.id != folderToEdit!!.id }
+
+                                    if (isDuplicate) {
+                                        editNameError = "A folder with this name already exists"
+                                    } else {
+                                        val finalEmoji = editEmoji.ifBlank { "📂" }
+
+                                        // Take a snapshot and keep the original ID so Room overwrites it
+                                        val updatedFolder = folderToEdit!!.copy(name = trimmedName, emoji = finalEmoji)
+                                        scope.launch(Dispatchers.IO) { folderDao.insertFolder(updatedFolder) }
+
+                                        folderToEdit = null
+                                    }
+                                }
+                            }
+                        ) {
+                            Text("Save")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { folderToEdit = null }) { Text("Cancel") }
                     }
                 )
             }
@@ -316,7 +427,7 @@ fun FolderDetailScreen(folder: ProjectFolder, notes: List<Note>, noteDao: NoteDa
 
 // Updated FolderCard to show note counts and accept clicks
 @Composable
-fun FolderCard(folder: ProjectFolder, noteCount: Int, onDelete: () -> Unit, onClick: () -> Unit) {
+fun FolderCard(folder: ProjectFolder, noteCount: Int, onDelete: () -> Unit, onEdit: () -> Unit, onClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable { onClick() },
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -326,34 +437,31 @@ fun FolderCard(folder: ProjectFolder, noteCount: Int, onDelete: () -> Unit, onCl
 
             // The main content of the card
             Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
-
-                // Centered Folder Image & Emoji
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
                     Image(
                         painter = painterResource(id = R.drawable.ic_folder_blue),
                         contentDescription = "Folder",
-                        modifier = Modifier.size(100.dp) // Scaled down from 150dp so it fits the grid better!
+                        modifier = Modifier.size(100.dp)
                     )
-                    Text(
-                        text = folder.emoji,
-                        style = MaterialTheme.typography.displaySmall
-                    )
+                    Text(text = folder.emoji, style = MaterialTheme.typography.displaySmall)
                 }
-
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(text = folder.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text(text = if (noteCount == 1) "1 item" else "$noteCount items", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
             }
 
-            // The Delete Button, pinned to the absolute top-right corner of the Card
+            // NEW: The Edit Button (Pinned to Top-Left)
             IconButton(
-                onClick = onDelete, // This will now trigger the pop-up we added earlier!
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(4.dp)
+                onClick = onEdit,
+                modifier = Modifier.align(Alignment.TopStart).padding(4.dp)
+            ) {
+                Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit", tint = Color.Gray)
+            }
+
+            // The Delete Button (Pinned to Top-Right)
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)
             ) {
                 Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = Color.Gray)
             }
