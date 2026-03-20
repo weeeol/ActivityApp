@@ -36,7 +36,8 @@ data class Note(
 
     // The unique key for the note
     @PrimaryKey
-    val id: String = java.util.UUID.randomUUID().toString()
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val createdAt: Long = System.currentTimeMillis()
 )
 
 class TimerEvent(
@@ -57,7 +58,8 @@ data class ProjectFolder(
 
     // Tell Room that this ID is the unique key for this row
     @PrimaryKey
-    val id: String = java.util.UUID.randomUUID().toString()
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val createdAt: Long = System.currentTimeMillis()
 )
 
 data class TimerSaveData(

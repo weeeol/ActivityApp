@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.Flow
 // --- 1. THE FOLDER DAO ---
 @Dao
 interface FolderDao {
-    @Query("SELECT * FROM folders")
+    @Query("SELECT * FROM folders ORDER BY createdAt DESC")
     fun getAllFolders(): Flow<List<ProjectFolder>>
 
     // Removed "suspend" and return types!
@@ -28,7 +28,7 @@ interface FolderDao {
 // --- 2. THE NOTE DAO ---
 @Dao
 interface NoteDao {
-    @Query("SELECT * FROM notes")
+    @Query("SELECT * FROM notes ORDER BY createdAt DESC")
     fun getAllNotes(): Flow<List<Note>>
 
     // Removed "suspend" and return types!
