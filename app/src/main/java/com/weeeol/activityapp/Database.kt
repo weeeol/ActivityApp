@@ -17,12 +17,11 @@ interface FolderDao {
     @Query("SELECT * FROM folders ORDER BY createdAt DESC")
     fun getAllFolders(): Flow<List<ProjectFolder>>
 
-    // Removed "suspend" and return types!
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insertFolder(folder: ProjectFolder)
+    suspend fun insertFolder(folder: ProjectFolder) // <-- Added suspend
 
     @Delete
-    fun deleteFolder(folder: ProjectFolder)
+    suspend fun deleteFolder(folder: ProjectFolder) // <-- Added suspend
 }
 
 // --- 2. THE NOTE DAO ---
@@ -31,15 +30,14 @@ interface NoteDao {
     @Query("SELECT * FROM notes ORDER BY createdAt DESC")
     fun getAllNotes(): Flow<List<Note>>
 
-    // Removed "suspend" and return types!
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insertNote(note: Note)
+    suspend fun insertNote(note: Note) // <-- Added suspend
 
     @Delete
-    fun deleteNote(note: Note)
+    suspend fun deleteNote(note: Note) // <-- Added suspend
 
     @Query("DELETE FROM notes WHERE folderId = :folderId")
-    fun deleteNotesByFolder(folderId: String)
+    suspend fun deleteNotesByFolder(folderId: String) // <-- Added suspend
 }
 
 // --- 3. THE ACTUAL DATABASE ---

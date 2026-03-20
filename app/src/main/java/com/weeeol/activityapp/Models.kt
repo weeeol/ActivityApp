@@ -64,5 +64,6 @@ data class ProjectFolder(
 
 data class TimerSaveData(
     val activityName: String,
-    val remainingSeconds: Long
+    val remainingSeconds: Long,
+    val scheduledTime: String? = null // NEW: Safely store the time as a string
 )

@@ -43,8 +43,17 @@ class DataManager(context: Context) {
     }
     // --- TIMERS SAVE/LOAD ---
     fun saveTimers(timers: List<TimerEvent>) {
-        // 1. Take a clean snapshot of the current timers
-        val snapshots = timers.map { TimerSaveData(it.activityName, it.remainingSeconds) }
+        val formatter = java.time.format.DateTimeFormatter.ISO_LOCAL_TIME
+
+        // 1. Take a clean snapshot, now including the scheduled time!
+        val snapshots = timers.map { timer ->
+            TimerSaveData(
+                activityName = timer.activityName,
+                remainingSeconds = timer.remainingSeconds,
+                // Convert the LocalTime to a String, or leave it null
+                scheduledTime = timer.scheduledTime?.format(formatter)
+            )
+        }
 
         // 2. Save the snapshots to the hard drive
         val jsonString = gson.toJson(snapshots)
@@ -53,14 +62,20 @@ class DataManager(context: Context) {
 
     fun loadTimers(): MutableList<TimerEvent> {
         val jsonString = sharedPreferences.getString("saved_timers", null) ?: return mutableListOf()
-        val type = object : TypeToken<List<TimerSaveData>>() {}.type
+        val type = object : com.google.gson.reflect.TypeToken<List<TimerSaveData>>() {}.type
         val savedSnapshots: List<TimerSaveData> = gson.fromJson(jsonString, type)
 
-        // 3. Convert the simple snapshots back into living, breathing TimerEvents!
+        val formatter = java.time.format.DateTimeFormatter.ISO_LOCAL_TIME
+
+        // 3. Convert the snapshots back into living TimerEvents
         return savedSnapshots.map { snapshot ->
+            // Rebuild the LocalTime object from the saved String
+            val parsedTime = snapshot.scheduledTime?.let { java.time.LocalTime.parse(it, formatter) }
+
             TimerEvent(
                 activityName = snapshot.activityName,
-                durationMinutes = 0 // Dummy value because we overwrite it on the next line
+                durationMinutes = 0, // Dummy value because we overwrite remainingSeconds below
+                scheduledTime = parsedTime // Pass the restored time here!
             ).apply {
                 this.remainingSeconds = snapshot.remainingSeconds
                 this.isRunning = false // Ensure timers start paused when you reopen the app
