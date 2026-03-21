@@ -41,7 +41,7 @@ interface NoteDao {
 }
 
 // --- 3. THE ACTUAL DATABASE ---
-@Database(entities = [ProjectFolder::class, Note::class], version = 1, exportSchema = true)
+@Database(entities = [ProjectFolder::class, Note::class], version = 2, exportSchema = true)
 abstract class AppDatabase : RoomDatabase() {
 
     // Connect the DAOs
@@ -59,7 +59,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "activity_app_database"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }

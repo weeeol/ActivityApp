@@ -230,10 +230,11 @@ fun TimerCard(timer: TimerEvent, onDelete: () -> Unit) {
                 delay(1000L) // Check the clock every second
                 val now = LocalTime.now()
 
-                // FIXED: Start ONLY when the exact hour and minute match!
-                if (now.hour == timer.scheduledTime.hour && now.minute == timer.scheduledTime.minute) {
+                // Trigger when the exact hour and minute match
+                if (now.hour == timer.scheduledTime?.hour && now.minute == timer.scheduledTime?.minute) {
                     timer.isRunning = true
-                    break // Stop watching the clock once we start
+                    timer.scheduledTime = null // <-- THE FIX: Erase the schedule so it can be paused!
+                    break
                 }
             }
         }
@@ -268,7 +269,7 @@ fun TimerCard(timer: TimerEvent, onDelete: () -> Unit) {
 
                 // NEW: Show the scheduled start time on the card if one exists
                 if (timer.scheduledTime != null && !timer.isRunning && timer.remainingSeconds > 0) {
-                    val timeString = timer.scheduledTime.format(DateTimeFormatter.ofPattern("hh:mm a"))
+                    val timeString = timer.scheduledTime!!.format(DateTimeFormatter.ofPattern("hh:mm a"))
                     Text(text = "Starts at $timeString", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                 }
 
@@ -280,7 +281,12 @@ fun TimerCard(timer: TimerEvent, onDelete: () -> Unit) {
             }
 
             IconButton(
-                onClick = { if (timer.remainingSeconds > 0) timer.isRunning = !timer.isRunning },
+                onClick = {
+                    if (timer.remainingSeconds > 0) {
+                        timer.isRunning = !timer.isRunning
+                        timer.scheduledTime = null // <-- THE FIX: Erase the schedule if they manually override
+                    }
+                },
                 modifier = Modifier.background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
             ) {
                 Icon(

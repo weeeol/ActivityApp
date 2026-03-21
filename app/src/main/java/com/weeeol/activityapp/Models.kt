@@ -43,8 +43,8 @@ data class Note(
 class TimerEvent(
     val activityName: String,
     durationMinutes: Int,
-    // NEW: Optional start time. Null means "start manually"
-    val scheduledTime: LocalTime? = null
+    // CHANGED: From 'val' to 'var' so we can erase it when the alarm rings
+    var scheduledTime: LocalTime? = null
 ) {
     val id: String = java.util.UUID.randomUUID().toString()
     var remainingSeconds by mutableLongStateOf((durationMinutes * 60).toLong())
