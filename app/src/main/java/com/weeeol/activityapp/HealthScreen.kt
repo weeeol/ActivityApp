@@ -356,7 +356,6 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
                                     }
                                 }
                             }
-                            ParticleExplosion(isTriggered = showWaterExplosion, particleColor = standColor, onFinished = { showWaterExplosion = false })
                         }
                     }
                 }
@@ -392,6 +391,7 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
                 }
             )
         }
+        ParticleExplosion(isTriggered = showWaterExplosion, particleColor = standColor, onFinished = { showWaterExplosion = false })
     }
 }
 
