@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -17,7 +18,7 @@ import androidx.room.PrimaryKey
 enum class NavItem(val title: String, val icon: ImageVector) {
     Health("Health", Icons.Default.FavoriteBorder),
     Notes("Notes", Icons.Default.Edit),
-    Folders("Folders", Icons.AutoMirrored.Filled.List),       // Changed from Folder to List
+    Folders("Folders", Icons.Default.Folder),       // Changed from Folder to List
     Timer("Timer", Icons.Default.PlayArrow)       // Changed from Timer to PlayArrow
 }
 data class Particle(

@@ -1,8 +1,13 @@
 package com.weeeol.activityapp
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,6 +25,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -36,18 +42,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.PaintingStyle
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.PaintingStyle
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 
 @Composable
 fun FloatingNavigationBar(
@@ -80,7 +86,6 @@ fun FloatingNavigationBar(
     val glowColor = MaterialTheme.colorScheme.primary
     val density = LocalDensity.current
 
-    // THE FIX: We calculate the heavy blur effect exactly ONCE and remember it!
     val blurPaint = remember(glowColor, density) {
         Paint().apply {
             color = glowColor
@@ -98,13 +103,8 @@ fun FloatingNavigationBar(
             .padding(horizontal = 24.dp)
             .height(72.dp)
             .fillMaxWidth()
-
-            // 1. THE OUTLINE BLOOM MAGIC
             .drawBehind {
                 drawIntoCanvas { canvas ->
-
-
-                    // Draw the glowing outline exactly where the border will be
                     canvas.drawRoundRect(
                         left = 0f,
                         top = 0f,
@@ -114,18 +114,11 @@ fun FloatingNavigationBar(
                         radiusY = 36.dp.toPx(),
                         paint = blurPaint
                     )
-
                 }
             }
-
-            // 2. Your glass background
             .clip(RoundedCornerShape(36.dp))
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
-
-            // 3. I updated the border color here to match the glow slightly so it blends better!
             .border(1.dp, glowColor.copy(alpha = 0.5f), RoundedCornerShape(36.dp))
-
-            // 4. Everything else stays the same
             .onSizeChanged { size -> barWidthPx = size.width.toFloat() }
             .pointerInput(barWidthPx) {
                 detectHorizontalDragGestures(
@@ -172,11 +165,12 @@ fun FloatingNavigationBar(
             }
     ) {
 
-        // THE FIX 3: The sliding pill. Uses the text color at 15% opacity.
+        // THE SLIDING PILL
         if (barWidthPx > 0) {
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
+                    // Keeps the pill exactly 1/4th of the width
                     .fillMaxWidth(1f / navItems.size)
                     .offset { IntOffset(indicatorOffset.value.roundToInt(), 0) }
                     .padding(8.dp)
@@ -185,21 +179,16 @@ fun FloatingNavigationBar(
             )
         }
 
+        // THE NAV ITEMS
+        // THE NAV ITEMS
         Row(modifier = Modifier.fillMaxSize()) {
             navItems.forEach { item ->
                 val isSelected = selectedItem == item
-
-                // THE FIX 4: Icon & Text Colors.
-                // Solid black/white if selected, 40% transparent if unselected.
-                val contentColor = if (isSelected) {
-                    MaterialTheme.colorScheme.onSurface
-                } else {
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                }
+                val contentColor = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
 
                 Box(
                     modifier = Modifier
-                        .weight(1f)
+                        .weight(1f) // Ensures the slots match the slider math
                         .fillMaxHeight()
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
@@ -208,6 +197,7 @@ fun FloatingNavigationBar(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
+                    // THE FIX: Changed from Row to Column so they stack vertically
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
@@ -218,13 +208,24 @@ fun FloatingNavigationBar(
                             tint = contentColor,
                             modifier = Modifier.size(24.dp)
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = item.title,
-                            color = contentColor,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                        )
+
+                        // THE FIX: Expanding vertically instead of horizontally!
+                        AnimatedVisibility(
+                            visible = isSelected,
+                            enter = fadeIn() + androidx.compose.animation.expandVertically(),
+                            exit = fadeOut() + androidx.compose.animation.shrinkVertically()
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Spacer(modifier = Modifier.height(4.dp)) // Space between icon and text
+                                Text(
+                                    text = item.title,
+                                    color = contentColor,
+                                    style = MaterialTheme.typography.labelSmall, // Slightly smaller text fits better vertically
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                            }
+                        }
                     }
                 }
             }

@@ -49,6 +49,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Folder
 
 @Composable
 fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: FolderDao, noteDao: NoteDao) {
@@ -136,13 +137,14 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
 
                             // --- THE LIVE PREVIEW ---
                             Box(contentAlignment = Alignment.Center) {
-                                Image(
-                                    painter = painterResource(id = R.drawable.ic_folder_blue),
+                                Icon(
+                                    imageVector = Icons.Default.Folder,
                                     contentDescription = "Folder Preview",
-                                    modifier = Modifier.size(100.dp)
+                                    modifier = Modifier.size(100.dp),
+                                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
                                 )
                                 Text(
-                                    text = newFolderEmoji.ifBlank { "📂" },
+                                    text = newFolderEmoji.ifBlank { "📂" }, // (Or editEmoji.ifBlank in the edit dialog)
                                     style = MaterialTheme.typography.displaySmall
                                 )
                             }
@@ -272,13 +274,14 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
                         ) {
                             // Live Preview
                             Box(contentAlignment = Alignment.Center) {
-                                androidx.compose.foundation.Image(
-                                    painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_folder_blue),
+                                Icon(
+                                    imageVector = Icons.Default.Folder,
                                     contentDescription = "Folder Preview",
-                                    modifier = Modifier.size(100.dp)
+                                    modifier = Modifier.size(100.dp),
+                                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
                                 )
                                 Text(
-                                    text = editEmoji.ifBlank { "📂" },
+                                    text = editEmoji.ifBlank { "📂" }, // (Or editEmoji.ifBlank in the edit dialog)
                                     style = MaterialTheme.typography.displaySmall
                                 )
                             }
@@ -439,10 +442,12 @@ fun FolderCard(folder: ProjectFolder, noteCount: Int, onDelete: () -> Unit, onEd
             // The main content of the card
             Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_folder_blue),
+                    Icon(
+                        imageVector = Icons.Default.Folder,
                         contentDescription = "Folder",
-                        modifier = Modifier.size(100.dp)
+                        modifier = Modifier.size(100.dp),
+                        // Soften the color so the emoji pops out more!
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
                     )
                     Text(text = folder.emoji, style = MaterialTheme.typography.displaySmall)
                 }
