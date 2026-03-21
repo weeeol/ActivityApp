@@ -29,6 +29,15 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import androidx.compose.ui.platform.LocalContext
+import android.os.Build
 
 // --- 1. THE AMBIENT ANIMATED BACKGROUND ---
 @Composable
@@ -158,11 +167,75 @@ fun StatArc(
 // --- THE MAIN SCREEN ---
 @Composable
 fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> Unit) {
+    val context = LocalContext.current
     val waterGoal = 8
     var showWaterExplosion by remember { mutableStateOf(false) }
-
-    // NEW: The toggle state for the split animation!
     var isDashboardExpanded by remember { mutableStateOf(false) }
+
+    // --- NEW: SENSOR & GOAL STATES ---
+    val dataManager = remember { DataManager(context) }
+
+    // THE FIX: Load the saved data instead of starting at 0!
+    var steps by remember { mutableIntStateOf(dataManager.loadSteps()) }
+    var stepsGoal by remember { mutableIntStateOf(dataManager.loadStepGoal()) }
+    var showGoalDialog by remember { mutableStateOf(false) }
+    var goalInput by remember { mutableStateOf("") }
+
+    // Load the last known hardware value from the hard drive
+    var lastSensorValue by remember { mutableFloatStateOf(dataManager.loadLastSensorValue()) }
+
+    // --- SENSOR INTEGRATION LOGIC ---
+    DisposableEffect(Unit) {
+        // THE FIX: Only use Attribution on Android 11+ (API 30)
+        val sensorManager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val attributionContext = context.createAttributionContext("StepCounterFeature")
+            attributionContext.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        } else {
+            context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        }
+
+        val stepSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
+
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent?) {
+                event?.let {
+                    val currentSensorValue = it.values[0]
+
+                    if (lastSensorValue == -1f) {
+                        // First time ever using the app, just record the baseline
+                        lastSensorValue = currentSensorValue
+                        dataManager.saveLastSensorValue(lastSensorValue)
+                    } else {
+                        // Calculate how many steps we took since the exact last moment we checked
+                        var delta = currentSensorValue - lastSensorValue
+
+                        if (delta < 0) {
+                            // If delta is negative, the phone was rebooted and reset to 0!
+                            delta = currentSensorValue
+                        }
+
+                        // Add the new steps to our daily total and save everything
+                        if (delta > 0) {
+                            steps += delta.toInt()
+                            dataManager.saveSteps(steps)
+
+                            lastSensorValue = currentSensorValue
+                            dataManager.saveLastSensorValue(lastSensorValue)
+                        }
+                    }
+                }
+            }
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+        }
+
+        if (stepSensor != null) {
+            sensorManager.registerListener(listener, stepSensor, SensorManager.SENSOR_DELAY_UI)
+        }
+
+        onDispose {
+            sensorManager.unregisterListener(listener)
+        }
+    }
 
     LaunchedEffect(waterGlasses) {
         if (waterGlasses == waterGoal) showWaterExplosion = true
@@ -170,11 +243,9 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
 
     val sleepHours = 6.5f
     val sleepGoal = 8.0f
-    val steps = 6432
-    val stepsGoal = 10000
 
     val sleepProgress = (sleepHours / sleepGoal).coerceIn(0f, 1f)
-    val stepsProgress = (steps.toFloat() / stepsGoal).coerceIn(0f, 1f)
+    val stepsProgress = if (stepsGoal > 0) (steps.toFloat() / stepsGoal).coerceIn(0f, 1f) else 0f
     val waterProgress = (waterGlasses.toFloat() / waterGoal).coerceIn(0f, 1f)
 
     val moveColor = Color(0xFFFA114F)
@@ -245,7 +316,13 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
                                 StatArc(progress = sleepProgress, color = moveColor, title = "Sleep", current = "$sleepHours", goal = "hrs")
                             }
 
-                            GlassCard(modifier = Modifier.weight(1f).aspectRatio(0.85f)) {
+                            GlassCard(
+                                modifier = Modifier.weight(1f).aspectRatio(0.85f),
+                                onClick = {
+                                    goalInput = stepsGoal.toString()
+                                    showGoalDialog = true
+                                }
+                            ) {
                                 StatArc(progress = stepsProgress, color = exerciseColor, title = "Steps", current = "$steps", goal = "/ $stepsGoal")
                             }
                         }
@@ -284,6 +361,36 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
                     }
                 }
             }
+        }
+
+        // --- THE EDIT STEPS POP-UP ---
+        if (showGoalDialog) {
+            AlertDialog(
+                onDismissRequest = { showGoalDialog = false },
+                title = { Text("Set Daily Step Goal") },
+                text = {
+                    OutlinedTextField(
+                        value = goalInput,
+                        onValueChange = { if (it.isEmpty() || it.all { char -> char.isDigit() }) goalInput = it },
+                        label = { Text("Steps") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
+                confirmButton = {
+                    Button(onClick = {
+                        stepsGoal = goalInput.toIntOrNull() ?: 10000
+                        dataManager.saveStepGoal(stepsGoal) // <-- THE FIX: Save the goal!
+                        showGoalDialog = false
+                    }) {
+                        Text("Save Goal")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showGoalDialog = false }) { Text("Cancel") }
+                }
+            )
         }
     }
 }

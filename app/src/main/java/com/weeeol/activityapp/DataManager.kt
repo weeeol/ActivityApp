@@ -108,4 +108,28 @@ class DataManager(context: Context) {
         // Returns an empty string if it's the very first time opening the app
         return sharedPreferences.getString("last_water_date", "") ?: ""
     }
+    // --- STEPS SAVE/LOAD ---
+    fun saveSteps(steps: Int) {
+        sharedPreferences.edit().putInt("saved_steps", steps).apply()
+    }
+
+    fun loadSteps(): Int {
+        return sharedPreferences.getInt("saved_steps", 0)
+    }
+
+    fun saveStepGoal(goal: Int) {
+        sharedPreferences.edit().putInt("step_goal", goal).apply()
+    }
+
+    fun loadStepGoal(): Int {
+        return sharedPreferences.getInt("step_goal", 10000)
+    }
+
+    fun saveLastSensorValue(value: Float) {
+        sharedPreferences.edit().putFloat("last_sensor_value", value).apply()
+    }
+
+    fun loadLastSensorValue(): Float {
+        return sharedPreferences.getFloat("last_sensor_value", -1f)
+    }
 }

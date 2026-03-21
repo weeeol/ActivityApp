@@ -20,12 +20,12 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.filled.Brightness4
 import androidx.compose.material.icons.filled.Brightness7
 import java.time.LocalDate
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import android.app.Activity
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.material.icons.filled.Settings
 
 
 class MainActivity : ComponentActivity() {
@@ -95,6 +95,7 @@ fun ActivityAppMainScreen(isDarkMode: Boolean, onThemeToggle: () -> Unit) {
             // It's a new day! Reset to 0 and save today's date
             dataManager.saveLastWaterDate(today)
             dataManager.saveWaterIntake(0)
+            dataManager.saveSteps(0) // <-- THE FIX: Reset steps to 0 at midnight!
             mutableIntStateOf(0)
         } else {
             // Same day, load the saved water amount
@@ -112,58 +113,67 @@ fun ActivityAppMainScreen(isDarkMode: Boolean, onThemeToggle: () -> Unit) {
 
     LaunchedEffect(waterGlasses) { dataManager.saveWaterIntake(waterGlasses) }
     LaunchedEffect(timers.toList()) { dataManager.saveTimers(timers) }
+// NEW: State to control if the settings screen is showing
+    var showSettings by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        MainContent(
-            selectedItem = selectedItem,
-            timers = timers,
-            notes = notes,
-            folders = folders,
-            noteDao = noteDao,
-            folderDao = folderDao,
-            waterGlasses = waterGlasses,
+        // We only show the main content if settings is closed
+        if (!showSettings) {
+            MainContent(
+                selectedItem = selectedItem,
+                timers = timers,
+                notes = notes,
+                folders = folders,
+                noteDao = noteDao,
+                folderDao = folderDao,
+                waterGlasses = waterGlasses,
+                onAddWater = {
+                    val today = LocalDate.now().toString()
+                    if (dataManager.loadLastWaterDate() != today) {
+                        waterGlasses = 1
+                        dataManager.saveLastWaterDate(today)
+                    } else {
+                        waterGlasses++
+                    }
+                },
+                onResetWater = { waterGlasses = 0 },
+                modifier = Modifier.fillMaxSize()
+            )
 
-            // 2. THE OVERNIGHT CHECK: What if they kept the app open past midnight?
-            onAddWater = {
-                val today = LocalDate.now().toString()
-                if (dataManager.loadLastWaterDate() != today) {
-                    // It rolled over to a new day while the app was open!
-                    waterGlasses = 1 // Set to 1 because they just drank their first glass
-                    dataManager.saveLastWaterDate(today)
-                } else {
-                    // Normal behavior
-                    waterGlasses++
-                }
-            },
+            // --- THE NEW SETTINGS ICON BUTTON ---
+            IconButton(
+                onClick = { showSettings = true }, // Opens the settings screen
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(top = 16.dp, end = 16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Settings",
+                    tint = MaterialTheme.colorScheme.onBackground
+                )
+            }
 
-            onResetWater = { waterGlasses = 0 },
-            modifier = Modifier.fillMaxSize()
-        )
-
-        // --- THE THEME TOGGLE BUTTON ---
-        IconButton(
-            onClick = onThemeToggle,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .statusBarsPadding() // Keeps it safely below the battery icon
-                .padding(top = 16.dp, end = 16.dp)
-        ) {
-            Icon(
-                // Show a Sun if in dark mode, or a Moon if in light mode!
-                imageVector = if (isDarkMode) Icons.Default.Brightness7 else Icons.Default.Brightness4,
-                contentDescription = "Toggle Theme",
-                tint = MaterialTheme.colorScheme.onBackground
+            FloatingNavigationBar(
+                selectedItem = selectedItem,
+                onItemSelected = { selectedItem = it },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 32.dp)
+            )
+        } else {
+            // --- SHOW THE SETTINGS SCREEN FULLY OVERLAYING EVERYTHING ---
+            SettingsScreen(
+                isDarkMode = isDarkMode,
+                // We handle the actual saving logic right here!
+                onThemeToggle = { isDark ->
+                    onThemeToggle() // This triggers the parent function to flip the state
+                },
+                onClose = { showSettings = false } // Closes the screen
             )
         }
-
-        FloatingNavigationBar(
-            selectedItem = selectedItem,
-            onItemSelected = { selectedItem = it },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(bottom = 32.dp)
-        )
     }
 }
 
