@@ -65,6 +65,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import androidx.activity.compose.BackHandler
 
 @Composable
 fun NotesScreen(notes: List<Note>, noteDao: NoteDao) {
@@ -264,7 +265,14 @@ fun EditNoteFullscreen(note: Note, onBack: (Note) -> Unit) {
     var tempTitle by remember { mutableStateOf(note.title) }
     var tempContent by remember { mutableStateOf(TextFieldValue(note.content)) }
     var tempIsCodeMode by remember { mutableStateOf(note.isCodeMode) }
-
+    BackHandler {
+        // Save the note and trigger the onBack callback to close the screen
+        note.title = tempTitle
+        note.content = tempContent.text
+        note.isCodeMode = tempIsCodeMode
+        note.timestamp = java.text.SimpleDateFormat("MMM dd, yyyy • hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())
+        onBack(note)
+    }
     val backgroundColor = if (tempIsCodeMode) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.background
     val textColor = MaterialTheme.colorScheme.onSurface
     val titleColor = if (tempIsCodeMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface

@@ -1,5 +1,6 @@
 package com.weeeol.activityapp
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -39,7 +40,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.FloatingActionButton
@@ -67,10 +67,15 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
 
 
     if (openedFolder != null) {
+        // Intercept the back button so it just closes the folder
+        BackHandler {
+            openedFolder = null
+        }
+
         FolderDetailScreen(
             folder = openedFolder!!,
             notes = notes,
-            noteDao = noteDao, // <-- ADD THIS LINE
+            noteDao = noteDao,
             onBack = { openedFolder = null }
         )
     } else {
