@@ -38,6 +38,10 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import androidx.compose.ui.platform.LocalContext
 import android.os.Build
+import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.ui.text.style.TextOverflow
 
 // --- 1. THE AMBIENT ANIMATED BACKGROUND ---
 @Composable
@@ -172,21 +176,22 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
     var showWaterExplosion by remember { mutableStateOf(false) }
     var isDashboardExpanded by remember { mutableStateOf(false) }
 
-    // --- NEW: SENSOR & GOAL STATES ---
+    // --- SENSOR & GOAL STATES ---
     val dataManager = remember { DataManager(context) }
-
-    // THE FIX: Load the saved data instead of starting at 0!
     var steps by remember { mutableIntStateOf(dataManager.loadSteps()) }
     var stepsGoal by remember { mutableIntStateOf(dataManager.loadStepGoal()) }
     var showGoalDialog by remember { mutableStateOf(false) }
     var goalInput by remember { mutableStateOf("") }
-
-    // Load the last known hardware value from the hard drive
     var lastSensorValue by remember { mutableFloatStateOf(dataManager.loadLastSensorValue()) }
+
+    // --- WEATHER STATES ---
+    var weatherLocation by remember { mutableStateOf("Mangaluru") }
+    var weatherCondition by remember { mutableStateOf("Sunny") }
+    var showWeatherDialog by remember { mutableStateOf(false) }
+    var tempLocationInput by remember { mutableStateOf("") }
 
     // --- SENSOR INTEGRATION LOGIC ---
     DisposableEffect(Unit) {
-        // THE FIX: Only use Attribution on Android 11+ (API 30)
         val sensorManager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val attributionContext = context.createAttributionContext("StepCounterFeature")
             attributionContext.getSystemService(Context.SENSOR_SERVICE) as SensorManager
@@ -195,30 +200,19 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
         }
 
         val stepSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
-
         val listener = object : SensorEventListener {
             override fun onSensorChanged(event: SensorEvent?) {
                 event?.let {
                     val currentSensorValue = it.values[0]
-
                     if (lastSensorValue == -1f) {
-                        // First time ever using the app, just record the baseline
                         lastSensorValue = currentSensorValue
                         dataManager.saveLastSensorValue(lastSensorValue)
                     } else {
-                        // Calculate how many steps we took since the exact last moment we checked
                         var delta = currentSensorValue - lastSensorValue
-
-                        if (delta < 0) {
-                            // If delta is negative, the phone was rebooted and reset to 0!
-                            delta = currentSensorValue
-                        }
-
-                        // Add the new steps to our daily total and save everything
+                        if (delta < 0) delta = currentSensorValue
                         if (delta > 0) {
                             steps += delta.toInt()
                             dataManager.saveSteps(steps)
-
                             lastSensorValue = currentSensorValue
                             dataManager.saveLastSensorValue(lastSensorValue)
                         }
@@ -231,10 +225,7 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
         if (stepSensor != null) {
             sensorManager.registerListener(listener, stepSensor, SensorManager.SENSOR_DELAY_UI)
         }
-
-        onDispose {
-            sensorManager.unregisterListener(listener)
-        }
+        onDispose { sensorManager.unregisterListener(listener) }
     }
 
     LaunchedEffect(waterGlasses) {
@@ -243,7 +234,6 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
 
     val sleepHours = 6.5f
     val sleepGoal = 8.0f
-
     val sleepProgress = (sleepHours / sleepGoal).coerceIn(0f, 1f)
     val stepsProgress = if (stepsGoal > 0) (steps.toFloat() / stepsGoal).coerceIn(0f, 1f) else 0f
     val waterProgress = (waterGlasses.toFloat() / waterGoal).coerceIn(0f, 1f)
@@ -253,16 +243,12 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
     val standColor = Color(0xFF1DDAE2)
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Drifting background stays behind everything
         AmbientBackground()
 
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
+            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Header: Click it to collapse the dashboard back to the ring!
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp).clickable { isDashboardExpanded = false },
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -275,11 +261,9 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
                 )
             }
 
-            // THE MAGIC: AnimatedContent handles the smooth morphing
             androidx.compose.animation.AnimatedContent(
                 targetState = isDashboardExpanded,
                 transitionSpec = {
-                    // This creates a smooth "Scale Up and Fade In" vs "Scale Down and Fade Out" effect
                     (androidx.compose.animation.fadeIn(animationSpec = tween(400)) + androidx.compose.animation.scaleIn(initialScale = 0.8f, animationSpec = tween(400)))
                         .togetherWith(
                             androidx.compose.animation.fadeOut(animationSpec = tween(400)) + androidx.compose.animation.scaleOut(targetScale = 0.8f, animationSpec = tween(400)))
@@ -287,15 +271,16 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
                 label = "dashboard_split"
             ) { expanded ->
                 if (!expanded) {
-                    // --- STATE 1: THE UNIFIED HERO RING ---
-                    Box(
-                        // THE FIX: Changed alignment to TopCenter and added top padding!
-                        modifier = Modifier.fillMaxSize().padding(top = 32.dp),
-                        contentAlignment = Alignment.TopCenter
+                    // --- STATE 1: THE UNIFIED HERO RING & WIDE WEATHER WIDGET ---
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(24.dp)
                     ) {
+                        // Top: The Hero Ring (Centered again)
                         GlassCard(
                             modifier = Modifier.size(280.dp),
-                            onClick = { isDashboardExpanded = true } // Tap to split!
+                            onClick = { isDashboardExpanded = true }
                         ) {
                             ActivityRings(
                                 moveProgress = sleepProgress,
@@ -304,9 +289,67 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
                                 modifier = Modifier.padding(16.dp)
                             )
                         }
+
+                        // Bottom: The New Wide Weather Widget
+                        GlassCard(
+                            modifier = Modifier.fillMaxWidth().height(100.dp),
+                            onClick = {
+                                tempLocationInput = weatherLocation
+                                showWeatherDialog = true
+                            }
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                val iconColor = if (weatherCondition == "Sunny") Color(0xFFFFD700) else Color.LightGray
+                                val icon = if (weatherCondition == "Sunny") Icons.Default.WbSunny else Icons.Default.Cloud
+                                val temp = if (weatherCondition == "Sunny") "32°C" else "26°C"
+
+                                // Left Side: Icon and Text
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = weatherCondition,
+                                        tint = iconColor,
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                    Column {
+                                        Text(
+                                            text = weatherCondition,
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(imageVector = Icons.Default.LocationOn, contentDescription = "Location", tint = Color.Gray, modifier = Modifier.size(14.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = weatherLocation,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = Color.Gray,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Right Side: Temperature
+                                Text(
+                                    text = temp,
+                                    style = MaterialTheme.typography.displayMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
                 } else {
                     // --- STATE 2: THE SPLIT GLASS CARDS ---
+                    // (Remains exactly as it was)
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -362,7 +405,7 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
             }
         }
 
-        // --- THE EDIT STEPS POP-UP ---
+        // --- EXISTING STEPS GOAL DIALOG ---
         if (showGoalDialog) {
             AlertDialog(
                 onDismissRequest = { showGoalDialog = false },
@@ -380,7 +423,7 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
                 confirmButton = {
                     Button(onClick = {
                         stepsGoal = goalInput.toIntOrNull() ?: 10000
-                        dataManager.saveStepGoal(stepsGoal) // <-- THE FIX: Save the goal!
+                        dataManager.saveStepGoal(stepsGoal)
                         showGoalDialog = false
                     }) {
                         Text("Save Goal")
@@ -391,6 +434,49 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
                 }
             )
         }
+
+        // --- WEATHER CONFIG DIALOG ---
+        if (showWeatherDialog) {
+            AlertDialog(
+                onDismissRequest = { showWeatherDialog = false },
+                title = { Text("Weather Settings") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        OutlinedTextField(
+                            value = tempLocationInput,
+                            onValueChange = { tempLocationInput = it },
+                            label = { Text("Location") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            Button(
+                                onClick = { weatherCondition = "Sunny" },
+                                colors = ButtonDefaults.buttonColors(containerColor = if (weatherCondition == "Sunny") MaterialTheme.colorScheme.primary else Color.Gray)
+                            ) { Text("Sunny") }
+
+                            Button(
+                                onClick = { weatherCondition = "Cloudy" },
+                                colors = ButtonDefaults.buttonColors(containerColor = if (weatherCondition == "Cloudy") MaterialTheme.colorScheme.primary else Color.Gray)
+                            ) { Text("Cloudy") }
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = {
+                        weatherLocation = tempLocationInput.ifBlank { "Unknown" }
+                        showWeatherDialog = false
+                    }) {
+                        Text("Save")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showWeatherDialog = false }) { Text("Cancel") }
+                }
+            )
+        }
+
         ParticleExplosion(isTriggered = showWaterExplosion, particleColor = standColor, onFinished = { showWaterExplosion = false })
     }
 }
