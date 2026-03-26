@@ -69,10 +69,8 @@ fun TimerScreen(
 
     val context = LocalContext.current
 
-    // NEW: State to trigger the popup window!
     var showAddTimerDialog by remember { mutableStateOf(false) }
 
-    // Wrap in a Box to float the FAB
     Box(modifier = Modifier.fillMaxSize()) {
 
         // --- MAIN SCREEN CONTENT ---
@@ -86,11 +84,9 @@ fun TimerScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Active Timers List
             LazyColumn(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                // Padding so the last timer isn't hidden by the nav bar
                 contentPadding = PaddingValues(bottom = 120.dp)
             ) {
                 items(timers, key = { it.id }) { timerEvent ->
@@ -195,11 +191,9 @@ fun TimerScreen(
                 confirmButton = {
                     Button(
                         onClick = {
-                            // Using the .ifBlank trick we added earlier!
                             val finalName = selectedActivity.ifBlank { "Custom Timer" }
                             onAddTimer(TimerEvent(finalName, selectedDuration, selectedTime))
 
-                            // Clean up form and close dialog
                             selectedTime = null
                             selectedActivity = ""
                             selectedDuration = durationOptions[2]
@@ -227,24 +221,21 @@ fun TimerScreen(
 @Composable
 fun TimerCard(timer: TimerEvent, onDelete: () -> Unit) {
 
-    // NEW ALARM LOGIC: Watch the clock to auto-start the timer
     LaunchedEffect(timer.scheduledTime, timer.isRunning) {
         if (timer.scheduledTime != null && !timer.isRunning && timer.remainingSeconds > 0) {
             while (true) {
-                delay(1000L) // Check the clock every second
+                delay(1000L)
                 val now = LocalTime.now()
 
-                // Trigger when the exact hour and minute match
                 if (now.hour == timer.scheduledTime?.hour && now.minute == timer.scheduledTime?.minute) {
                     timer.isRunning = true
-                    timer.scheduledTime = null // <-- THE FIX: Erase the schedule so it can be paused!
+                    timer.scheduledTime = null
                     break
                 }
             }
         }
     }
 
-    // ORIGINAL COUNTDOWN LOGIC: Ticks down the seconds
     LaunchedEffect(timer.isRunning) {
         while (timer.isRunning && timer.remainingSeconds > 0) {
             delay(1000L)
@@ -271,7 +262,6 @@ fun TimerCard(timer: TimerEvent, onDelete: () -> Unit) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = timer.activityName, style = MaterialTheme.typography.titleMedium)
 
-                // NEW: Show the scheduled start time on the card if one exists
                 if (timer.scheduledTime != null && !timer.isRunning && timer.remainingSeconds > 0) {
                     val timeString = timer.scheduledTime!!.format(DateTimeFormatter.ofPattern("hh:mm a"))
                     Text(text = "Starts at $timeString", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
@@ -288,7 +278,7 @@ fun TimerCard(timer: TimerEvent, onDelete: () -> Unit) {
                 onClick = {
                     if (timer.remainingSeconds > 0) {
                         timer.isRunning = !timer.isRunning
-                        timer.scheduledTime = null // <-- THE FIX: Erase the schedule if they manually override
+                        timer.scheduledTime = null
                     }
                 },
                 modifier = Modifier.background(MaterialTheme.colorScheme.primaryContainer, CircleShape)

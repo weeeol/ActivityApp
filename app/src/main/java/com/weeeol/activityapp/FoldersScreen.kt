@@ -83,7 +83,6 @@ fun FoldersScreen(
             onDeleteNote = onDeleteNote
         )
     } else {
-        // We use a Box here so we can float the Add button over the grid
         Box(modifier = Modifier.fillMaxSize()) {
 
             Column(modifier = Modifier.fillMaxSize().padding(top = 8.dp)) {
@@ -151,7 +150,7 @@ fun FoldersScreen(
                                     tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
                                 )
                                 Text(
-                                    text = newFolderEmoji.ifBlank { "📂" }, // (Or editEmoji.ifBlank in the edit dialog)
+                                    text = newFolderEmoji.ifBlank { "📂" },
                                     style = MaterialTheme.typography.displaySmall
                                 )
                             }
@@ -276,7 +275,7 @@ fun FoldersScreen(
                                     tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
                                 )
                                 Text(
-                                    text = editEmoji.ifBlank { "📂" }, // (Or editEmoji.ifBlank in the edit dialog)
+                                    text = editEmoji.ifBlank { "📂" },
                                     style = MaterialTheme.typography.displaySmall
                                 )
                             }
@@ -318,7 +317,6 @@ fun FoldersScreen(
                                     } else {
                                         val finalEmoji = editEmoji.ifBlank { "📂" }
 
-                                        // Take a snapshot and keep the original ID so Room overwrites it
                                         val updatedFolder = folderToEdit!!.copy(name = trimmedName, emoji = finalEmoji)
                                         onUpdateFolder(updatedFolder)
 
@@ -339,7 +337,6 @@ fun FoldersScreen(
     }
 }
 
-// NEW: The screen that shows when you open a folder
 @Composable
 fun FolderDetailScreen(
     folder: ProjectFolder,
@@ -366,7 +363,6 @@ fun FolderDetailScreen(
     } else {
         Column(modifier = Modifier.fillMaxSize().padding(top = 16.dp)) {
 
-            // Header with Back Arrow and Folder Name
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp)) {
                 IconButton(onClick = onBack) {
                     Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -401,7 +397,6 @@ fun FolderDetailScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // The Keep-style Grid for this specific folder
             LazyVerticalStaggeredGrid(
                 columns = StaggeredGridCells.Fixed(2),
                 modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
@@ -420,7 +415,6 @@ fun FolderDetailScreen(
     }
 }
 
-// Updated FolderCard to show note counts and accept clicks
 @Composable
 fun FolderCard(folder: ProjectFolder, noteCount: Int, onDelete: () -> Unit, onEdit: () -> Unit, onClick: () -> Unit) {
     Card(
@@ -437,7 +431,6 @@ fun FolderCard(folder: ProjectFolder, noteCount: Int, onDelete: () -> Unit, onEd
                         imageVector = Icons.Default.Folder,
                         contentDescription = "Folder",
                         modifier = Modifier.size(100.dp),
-                        // Soften the color so the emoji pops out more!
                         tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
                     )
                     Text(text = folder.emoji, style = MaterialTheme.typography.displaySmall)
@@ -447,7 +440,6 @@ fun FolderCard(folder: ProjectFolder, noteCount: Int, onDelete: () -> Unit, onEd
                 Text(text = if (noteCount == 1) "1 item" else "$noteCount items", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
             }
 
-            // NEW: The Edit Button (Pinned to Top-Left)
             IconButton(
                 onClick = onEdit,
                 modifier = Modifier.align(Alignment.TopStart).padding(4.dp)
@@ -455,7 +447,6 @@ fun FolderCard(folder: ProjectFolder, noteCount: Int, onDelete: () -> Unit, onEd
                 Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit", tint = Color.Gray)
             }
 
-            // The Delete Button (Pinned to Top-Right)
             IconButton(
                 onClick = onDelete,
                 modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)

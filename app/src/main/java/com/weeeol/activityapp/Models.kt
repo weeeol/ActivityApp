@@ -18,8 +18,8 @@ import androidx.room.PrimaryKey
 enum class NavItem(val title: String, val icon: ImageVector) {
     Health("Health", Icons.Default.FavoriteBorder),
     Notes("Notes", Icons.Default.Edit),
-    Folders("Folders", Icons.Default.Folder),       // Changed from Folder to List
-    Timer("Timer", Icons.Default.PlayArrow)       // Changed from Timer to PlayArrow
+    Folders("Folders", Icons.Default.Folder),
+    Timer("Timer", Icons.Default.PlayArrow)
 }
 data class Particle(
     val angle: Float,
@@ -35,7 +35,7 @@ data class Note(
     var timestamp: String = java.text.SimpleDateFormat("MMM dd, yyyy • hh:mm a", java.util.Locale.getDefault()).format(java.util.Date()),
     var isCodeMode: Boolean = false,
 
-    // The unique key for the note
+
     @PrimaryKey
     val id: String = java.util.UUID.randomUUID().toString(),
     val createdAt: Long = System.currentTimeMillis()
@@ -44,7 +44,6 @@ data class Note(
 class TimerEvent(
     val activityName: String,
     durationMinutes: Int,
-    // CHANGED: From 'val' to 'var' so we can erase it when the alarm rings
     var scheduledTime: LocalTime? = null
 ) {
     val id: String = java.util.UUID.randomUUID().toString()
@@ -57,7 +56,6 @@ data class ProjectFolder(
     var name: String,
     var emoji: String = "📂",
 
-    // Tell Room that this ID is the unique key for this row
     @PrimaryKey
     val id: String = java.util.UUID.randomUUID().toString(),
     val createdAt: Long = System.currentTimeMillis()
@@ -66,5 +64,5 @@ data class ProjectFolder(
 data class TimerSaveData(
     val activityName: String,
     val remainingSeconds: Long,
-    val scheduledTime: String? = null // NEW: Safely store the time as a string
+    val scheduledTime: String? = null
 )

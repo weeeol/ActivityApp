@@ -5,7 +5,6 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
 class DataManager(context: Context) {
-    // This is the file on the hard drive where your data lives
     private val sharedPreferences = context.getSharedPreferences("ActivityAppDatabase", Context.MODE_PRIVATE)
     private val gson = Gson()
 
@@ -31,7 +30,6 @@ class DataManager(context: Context) {
     fun loadFolders(): MutableList<ProjectFolder> {
         val jsonString = sharedPreferences.getString("saved_folders", null)
         if (jsonString == null) {
-            // First time opening the app? Give them default folders!
             return mutableListOf(
                 ProjectFolder("College Assignments", "🎓"),
                 ProjectFolder("Game Dev", "🎮"),
@@ -45,17 +43,14 @@ class DataManager(context: Context) {
     fun saveTimers(timers: List<TimerEvent>) {
         val formatter = java.time.format.DateTimeFormatter.ISO_LOCAL_TIME
 
-        // 1. Take a clean snapshot, now including the scheduled time!
         val snapshots = timers.map { timer ->
             TimerSaveData(
                 activityName = timer.activityName,
                 remainingSeconds = timer.remainingSeconds,
-                // Convert the LocalTime to a String, or leave it null
                 scheduledTime = timer.scheduledTime?.format(formatter)
             )
         }
 
-        // 2. Save the snapshots to the hard drive
         val jsonString = gson.toJson(snapshots)
         sharedPreferences.edit().putString("saved_timers", jsonString).apply()
     }
@@ -67,18 +62,16 @@ class DataManager(context: Context) {
 
         val formatter = java.time.format.DateTimeFormatter.ISO_LOCAL_TIME
 
-        // 3. Convert the snapshots back into living TimerEvents
         return savedSnapshots.map { snapshot ->
-            // Rebuild the LocalTime object from the saved String
             val parsedTime = snapshot.scheduledTime?.let { java.time.LocalTime.parse(it, formatter) }
 
             TimerEvent(
                 activityName = snapshot.activityName,
-                durationMinutes = 0, // Dummy value because we overwrite remainingSeconds below
-                scheduledTime = parsedTime // Pass the restored time here!
+                durationMinutes = 0,
+                scheduledTime = parsedTime
             ).apply {
                 this.remainingSeconds = snapshot.remainingSeconds
-                this.isRunning = false // Ensure timers start paused when you reopen the app
+                this.isRunning = false
             }
         }.toMutableList()
     }
@@ -88,7 +81,6 @@ class DataManager(context: Context) {
     }
 
     fun loadTheme(isSystemDark: Boolean): Boolean {
-        // If they haven't set a preference yet, default to their phone's system setting
         return sharedPreferences.getBoolean("is_dark_theme", isSystemDark)
     }
     // --- WATER SAVE/LOAD ---
@@ -105,7 +97,6 @@ class DataManager(context: Context) {
     }
 
     fun loadLastWaterDate(): String {
-        // Returns an empty string if it's the very first time opening the app
         return sharedPreferences.getString("last_water_date", "") ?: ""
     }
     // --- STEPS SAVE/LOAD ---

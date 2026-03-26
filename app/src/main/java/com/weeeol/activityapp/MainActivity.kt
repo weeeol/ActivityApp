@@ -26,18 +26,15 @@ class MainActivity : ComponentActivity() {
         setContent {
             val context = LocalContext.current
 
-            // 1. Initialize the ViewModel using our custom Factory
             val viewModel: ActivityViewModel = viewModel(
                 factory = ActivityViewModelFactory(context.applicationContext)
             )
 
-            // 2. Safely initialize the theme on first run
             val systemTheme = isSystemInDarkTheme()
             LaunchedEffect(Unit) {
                 viewModel.initTheme(systemTheme)
             }
 
-            // 3. Observe the theme directly from the ViewModel
             val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
 
             ActivityAppTheme(darkTheme = isDarkMode) {
@@ -45,7 +42,6 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    // Pass the ViewModel down!
                     ActivityAppMainScreen(viewModel = viewModel)
                 }
             }
@@ -58,14 +54,13 @@ fun ActivityAppMainScreen(viewModel: ActivityViewModel) {
 
     val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
 
-    // --- COLLECT ALL STATE FROM VIEWMODEL ---
     val selectedItem by viewModel.selectedNavItem.collectAsStateWithLifecycle()
     val waterGlasses by viewModel.waterGlasses.collectAsStateWithLifecycle()
     val timers by viewModel.timers.collectAsStateWithLifecycle()
     val notes by viewModel.notes.collectAsStateWithLifecycle(initialValue = emptyList())
     val folders by viewModel.folders.collectAsStateWithLifecycle(initialValue = emptyList())
 
-    var showSettings by remember { mutableStateOf(false) } // Keep simple UI toggles in Compose
+    var showSettings by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (!showSettings) {
@@ -91,7 +86,7 @@ fun ActivityAppMainScreen(viewModel: ActivityViewModel) {
 
             FloatingNavigationBar(
                 selectedItem = selectedItem,
-                onItemSelected = { viewModel.selectNavItem(it) }, // Route clicks to ViewModel
+                onItemSelected = { viewModel.selectNavItem(it) },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
@@ -100,7 +95,7 @@ fun ActivityAppMainScreen(viewModel: ActivityViewModel) {
         } else {
             SettingsScreen(
                 isDarkMode = isDarkMode,
-                onThemeToggle = { viewModel.toggleTheme() }, // Route clicks to ViewModel
+                onThemeToggle = { viewModel.toggleTheme() },
                 onClose = { showSettings = false }
             )
         }
@@ -120,8 +115,7 @@ fun MainContent(
     Box(
         modifier = modifier
             .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
-            .padding(start = 16.dp, top = 16.dp, end = 16.dp),
+            .statusBarsPadding(),
         contentAlignment = Alignment.TopStart
     ) {
         when (selectedItem) {

@@ -165,12 +165,10 @@ fun FloatingNavigationBar(
             }
     ) {
 
-        // THE SLIDING PILL
         if (barWidthPx > 0) {
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
-                    // Keeps the pill exactly 1/4th of the width
                     .fillMaxWidth(1f / navItems.size)
                     .offset { IntOffset(indicatorOffset.value.roundToInt(), 0) }
                     .padding(8.dp)
@@ -179,8 +177,6 @@ fun FloatingNavigationBar(
             )
         }
 
-        // THE NAV ITEMS
-        // THE NAV ITEMS
         Row(modifier = Modifier.fillMaxSize()) {
             navItems.forEach { item ->
                 val isSelected = selectedItem == item
@@ -188,7 +184,7 @@ fun FloatingNavigationBar(
 
                 Box(
                     modifier = Modifier
-                        .weight(1f) // Ensures the slots match the slider math
+                        .weight(1f)
                         .fillMaxHeight()
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
@@ -197,7 +193,6 @@ fun FloatingNavigationBar(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    // THE FIX: Changed from Row to Column so they stack vertically
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
@@ -209,18 +204,17 @@ fun FloatingNavigationBar(
                             modifier = Modifier.size(24.dp)
                         )
 
-                        // THE FIX: Expanding vertically instead of horizontally!
                         AnimatedVisibility(
                             visible = isSelected,
                             enter = fadeIn() + androidx.compose.animation.expandVertically(),
                             exit = fadeOut() + androidx.compose.animation.shrinkVertically()
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Spacer(modifier = Modifier.height(4.dp)) // Space between icon and text
+                                Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = item.title,
                                     color = contentColor,
-                                    style = MaterialTheme.typography.labelSmall, // Slightly smaller text fits better vertically
+                                    style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1
                                 )

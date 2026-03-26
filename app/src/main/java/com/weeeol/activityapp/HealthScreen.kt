@@ -98,9 +98,7 @@ fun GlassCard(
 ) {
     var boxModifier = modifier
         .clip(RoundedCornerShape(28.dp))
-        // The frosted glass background (highly transparent)
         .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
-        // The delicate glass rim reflection
         .border(
             width = 1.dp,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
@@ -135,20 +133,17 @@ fun StatArc(
     )
 
     Box(contentAlignment = Alignment.Center, modifier = modifier.fillMaxWidth()) {
-        // The Arc Behind the Text
         Canvas(modifier = Modifier.size(120.dp)) {
             val strokeWidth = 12.dp.toPx()
 
-            // Background track
             drawArc(
                 color = color.copy(alpha = 0.15f),
                 startAngle = 140f,
-                sweepAngle = 260f, // Leaves a gap at the bottom
+                sweepAngle = 260f,
                 useCenter = false,
                 style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
             )
 
-            // Foreground glowing progress
             drawArc(
                 color = color,
                 startAngle = 140f,
@@ -158,7 +153,6 @@ fun StatArc(
             )
         }
 
-        // The Text Floating inside
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(text = title, style = MaterialTheme.typography.labelMedium, color = Color.Gray)
             Spacer(modifier = Modifier.height(4.dp))
@@ -277,7 +271,6 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(24.dp)
                     ) {
-                        // Top: The Hero Ring (Centered again)
                         GlassCard(
                             modifier = Modifier.size(280.dp),
                             onClick = { isDashboardExpanded = true }
@@ -290,7 +283,6 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
                             )
                         }
 
-                        // Bottom: The New Wide Weather Widget
                         GlassCard(
                             modifier = Modifier.fillMaxWidth().height(100.dp),
                             onClick = {
@@ -307,7 +299,6 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
                                 val icon = if (weatherCondition == "Sunny") Icons.Default.WbSunny else Icons.Default.Cloud
                                 val temp = if (weatherCondition == "Sunny") "32°C" else "26°C"
 
-                                // Left Side: Icon and Text
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -338,7 +329,6 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
                                     }
                                 }
 
-                                // Right Side: Temperature
                                 Text(
                                     text = temp,
                                     style = MaterialTheme.typography.displayMedium,
@@ -349,7 +339,6 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
                     }
                 } else {
                     // --- STATE 2: THE SPLIT GLASS CARDS ---
-                    // (Remains exactly as it was)
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -481,7 +470,7 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
     }
 }
 
-// --- PARTICLE EXPLOSION (Unchanged, just moved down) ---
+// --- PARTICLE EXPLOSION  ---
 @Composable
 fun ParticleExplosion(isTriggered: Boolean, particleColor: Color, onFinished: () -> Unit) {
     if (!isTriggered) return
@@ -522,7 +511,7 @@ fun ActivityRings(
     val animStand by animateFloatAsState(targetValue = standProgress, animationSpec = tween(1000, delayMillis = 400), label = "stAnim")
 
     Canvas(modifier = modifier.fillMaxSize()) {
-        val strokeWidth = size.width * 0.14f // Slightly thicker for the hero view
+        val strokeWidth = size.width * 0.14f
         val spacing = strokeWidth * 0.25f
         val center = Offset(size.width / 2, size.height / 2)
 
@@ -531,7 +520,6 @@ fun ActivityRings(
         val r3 = r2 - strokeWidth - spacing
 
         fun drawRing(radius: Float, progress: Float, color: Color) {
-            // Background Track
             drawArc(
                 color = color.copy(alpha = 0.15f),
                 startAngle = -90f,
@@ -541,7 +529,6 @@ fun ActivityRings(
                 size = Size(radius * 2, radius * 2),
                 style = Stroke(width = strokeWidth)
             )
-            // Foreground Progress
             drawArc(
                 color = color,
                 startAngle = -90f,

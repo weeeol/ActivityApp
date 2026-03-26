@@ -18,10 +18,10 @@ interface FolderDao {
     fun getAllFolders(): Flow<List<ProjectFolder>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertFolder(folder: ProjectFolder) // <-- Added suspend
+    suspend fun insertFolder(folder: ProjectFolder)
 
     @Delete
-    suspend fun deleteFolder(folder: ProjectFolder) // <-- Added suspend
+    suspend fun deleteFolder(folder: ProjectFolder)
 }
 
 // --- 2. THE NOTE DAO ---
@@ -31,13 +31,12 @@ interface NoteDao {
     fun getAllNotes(): Flow<List<Note>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertNote(note: Note) // <-- Added suspend
-
+    suspend fun insertNote(note: Note)
     @Delete
-    suspend fun deleteNote(note: Note) // <-- Added suspend
+    suspend fun deleteNote(note: Note)
 
     @Query("DELETE FROM notes WHERE folderId = :folderId")
-    suspend fun deleteNotesByFolder(folderId: String) // <-- Added suspend
+    suspend fun deleteNotesByFolder(folderId: String)
 }
 
 // --- 3. THE ACTUAL DATABASE ---
@@ -53,7 +52,6 @@ abstract class AppDatabase : RoomDatabase() {
         private var INSTANCE: AppDatabase? = null
 
         fun getDatabase(context: Context): AppDatabase {
-            // If the database already exists, return it. Otherwise, build it!
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,

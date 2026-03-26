@@ -34,11 +34,10 @@ class ActivityViewModel(
     val timers: StateFlow<List<TimerEvent>> = _timers.asStateFlow()
 
     // --- Room Database Streams ---
-    val notes = noteDao.getAllNotes() // Already returns a Flow!
-    val folders = folderDao.getAllFolders() // Already returns a Flow!
+    val notes = noteDao.getAllNotes()
+    val folders = folderDao.getAllFolders()
 
     init {
-        // Startup Logic: Checking if it's a new day for the water and step trackers
         val today = LocalDate.now().toString()
         val lastDate = dataManager.loadLastWaterDate()
 
@@ -51,7 +50,6 @@ class ActivityViewModel(
             _waterGlasses.value = dataManager.loadWaterIntake()
         }
 
-        // Load saved timers from disk
         _timers.value = dataManager.loadTimers()
     }
 
@@ -92,14 +90,11 @@ class ActivityViewModel(
     }
 
     fun updateFolder(folder: ProjectFolder) {
-        // Room's REPLACE strategy means insert handles updates too
         viewModelScope.launch(Dispatchers.IO) { folderDao.insertFolder(folder) }
     }
 
     fun deleteFolder(folder: ProjectFolder) {
         viewModelScope.launch(Dispatchers.IO) {
-            // Business logic moved out of the UI!
-            // We wipe the notes first, then the folder.
             noteDao.deleteNotesByFolder(folder.id)
             folderDao.deleteFolder(folder)
         }

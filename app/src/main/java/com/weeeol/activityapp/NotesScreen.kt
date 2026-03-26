@@ -21,7 +21,7 @@ import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField // <-- NEW IMPORT
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -46,12 +46,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor // <-- NEW IMPORT
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -63,9 +62,20 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material.icons.filled.FormatListBulleted
+import androidx.compose.material.icons.filled.Title
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.imePadding
 
 @Composable
 fun NotesScreen(
@@ -78,6 +88,9 @@ fun NotesScreen(
     var contentText by remember { mutableStateOf("") }
     var showAddNoteDialog by remember { mutableStateOf(false) }
     var editingNote by remember { mutableStateOf<Note?>(null) }
+
+    var isFabExpanded by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     var searchQuery by remember { mutableStateOf("") }
 
@@ -152,16 +165,83 @@ fun NotesScreen(
                     }
                 }
             }
-
-            FloatingActionButton(
-                onClick = { showAddNoteDialog = true },
+            // --- THE NEW DIMMED OVERLAY ---
+            AnimatedVisibility(
+                visible = isFabExpanded,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.6f))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { isFabExpanded = false }
+                        )
+                )
+            }
+            // --- THE EXPANDABLE FAB MENU ---
+            Column(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(end = 24.dp, bottom = 190.dp),
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Icon(imageVector = Icons.Default.Add, contentDescription = "Add Note")
+                // 1. The Sliding Menu
+                AnimatedVisibility(
+                    visible = isFabExpanded,
+                    enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
+                    exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom)
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+
+                        // The "List" Button (Placeholder for now)
+                        ExtendedFloatingActionButton(
+                            text = { Text("List") },
+                            icon = { Icon(Icons.Default.FormatListBulleted, contentDescription = "List Note") },
+                            onClick = {
+                                isFabExpanded = false
+                                Toast.makeText(context, "Checklist feature coming soon!", Toast.LENGTH_SHORT).show()
+                            },
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+
+                        // The "Text" Button (Triggers your existing dialog)
+                        ExtendedFloatingActionButton(
+                            text = { Text("Text") },
+                            icon = { Icon(Icons.Default.Title, contentDescription = "Text Note") },
+                            onClick = {
+                                isFabExpanded = false
+                                showAddNoteDialog = true
+                            },
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                }
+
+                // 2. The Main Toggle Button
+                FloatingActionButton(
+                    onClick = { isFabExpanded = !isFabExpanded },
+                    containerColor = if (isFabExpanded) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = if (isFabExpanded) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onPrimaryContainer
+                ) {
+                    Crossfade(targetState = isFabExpanded, label = "fab_icon") { expanded ->
+                        if (expanded) {
+                            Icon(imageVector = Icons.Default.Close, contentDescription = "Close Menu")
+                        } else {
+                            Icon(imageVector = Icons.Default.Add, contentDescription = "Expand Menu")
+                        }
+                    }
+                }
             }
 
             if (showAddNoteDialog) {
@@ -269,7 +349,6 @@ fun EditNoteFullscreen(note: Note, onBack: (Note) -> Unit) {
     var tempContent by remember { mutableStateOf(TextFieldValue(note.content)) }
     var tempIsCodeMode by remember { mutableStateOf(note.isCodeMode) }
     BackHandler {
-        // Save the note and trigger the onBack callback to close the screen
         note.title = tempTitle
         note.content = tempContent.text
         note.isCodeMode = tempIsCodeMode
@@ -355,7 +434,12 @@ fun EditNoteFullscreen(note: Note, onBack: (Note) -> Unit) {
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(backgroundColor)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(backgroundColor)
+            .imePadding()
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(8.dp),
             horizontalArrangement = Arrangement.Start,
@@ -400,7 +484,6 @@ fun EditNoteFullscreen(note: Note, onBack: (Note) -> Unit) {
             modifier = Modifier.fillMaxWidth()
         )
 
-        // THE FIX: Upgraded Editor Layout with BasicTextField!
         Row(
             modifier = Modifier
                 .fillMaxSize()
@@ -417,15 +500,14 @@ fun EditNoteFullscreen(note: Note, onBack: (Note) -> Unit) {
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                     textAlign = TextAlign.End,
                     modifier = Modifier
-                        .padding(start = 8.dp, end = 12.dp) // Tighter edge padding for line numbers
+                        .padding(start = 8.dp, end = 12.dp)
                         .width(32.dp)
                 )
             } else {
-                Spacer(modifier = Modifier.width(16.dp)) // Standard left margin when NOT in code mode
+                Spacer(modifier = Modifier.width(16.dp))
             }
 
             Box(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
-                // BasicTextField doesn't have a built-in placeholder, so we draw it manually underneath!
                 if (tempContent.text.isEmpty()) {
                     Text(
                         text = "Write your snippet...",
