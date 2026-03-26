@@ -236,7 +236,7 @@ fun FoldersScreen(
                         Button(
                             onClick = {
                                 onDeleteFolder(folderToDelete!!)
-
+                                folderToDelete = null
                             },
                             colors = androidx.compose.material3.ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.error
