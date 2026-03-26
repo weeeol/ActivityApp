@@ -55,7 +55,11 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.TextButton
 
 @Composable
-fun TimerScreen(timers: MutableList<TimerEvent>) {
+fun TimerScreen(
+    timers: List<TimerEvent>,
+    onAddTimer: (TimerEvent) -> Unit,
+    onDeleteTimer: (TimerEvent) -> Unit
+) {
     val activityList = listOf("College Assignments", "Game Dev", "Python & Git", "Running")
     var selectedActivity by remember { mutableStateOf("") }
 
@@ -90,7 +94,7 @@ fun TimerScreen(timers: MutableList<TimerEvent>) {
                 contentPadding = PaddingValues(bottom = 120.dp)
             ) {
                 items(timers, key = { it.id }) { timerEvent ->
-                    TimerCard(timer = timerEvent, onDelete = { timers.remove(timerEvent) })
+                    TimerCard(timer = timerEvent, onDelete = { onDeleteTimer(timerEvent) })
                 }
             }
         }
@@ -193,7 +197,7 @@ fun TimerScreen(timers: MutableList<TimerEvent>) {
                         onClick = {
                             // Using the .ifBlank trick we added earlier!
                             val finalName = selectedActivity.ifBlank { "Custom Timer" }
-                            timers.add(TimerEvent(finalName, selectedDuration, selectedTime))
+                            onAddTimer(TimerEvent(finalName, selectedDuration, selectedTime))
 
                             // Clean up form and close dialog
                             selectedTime = null
