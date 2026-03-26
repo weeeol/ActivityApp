@@ -130,9 +130,22 @@ fun MainContent(
                 onAddWater = { viewModel.addWater() },
                 onResetWater = { viewModel.resetWater() }
             )
-            // Passing the DAOs through the ViewModel keeps our previous screens working perfectly
-            NavItem.Notes -> NotesScreen(notes = notes, noteDao = viewModel.noteDao)
-            NavItem.Folders -> FoldersScreen(folders = folders, notes = notes, folderDao = viewModel.folderDao, noteDao = viewModel.noteDao)
+            NavItem.Notes -> NotesScreen(
+                notes = notes,
+                onAddNote = { viewModel.addNote(it) },
+                onUpdateNote = { viewModel.updateNote(it) },
+                onDeleteNote = { viewModel.deleteNote(it) }
+            )
+            NavItem.Folders -> FoldersScreen(
+                folders = folders,
+                notes = notes,
+                onAddFolder = { viewModel.addFolder(it) },
+                onUpdateFolder = { viewModel.updateFolder(it) },
+                onDeleteFolder = { viewModel.deleteFolder(it) },
+                onAddNote = { viewModel.addNote(it) },
+                onUpdateNote = { viewModel.updateNote(it) },
+                onDeleteNote = { viewModel.deleteNote(it) }
+            )
             NavItem.Timer -> TimerScreen(
                 timers = timers,
                 onAddTimer = { viewModel.addTimer(it) },

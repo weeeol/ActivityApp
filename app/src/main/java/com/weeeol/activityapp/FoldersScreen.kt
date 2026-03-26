@@ -40,23 +40,27 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 @Composable
-fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: FolderDao, noteDao: NoteDao) {
-    val scope = rememberCoroutineScope()
+fun FoldersScreen(
+    folders: List<ProjectFolder>,
+    notes: List<Note>,
+    onAddFolder: (ProjectFolder) -> Unit,
+    onUpdateFolder: (ProjectFolder) -> Unit,
+    onDeleteFolder: (ProjectFolder) -> Unit,
+    onAddNote: (Note) -> Unit,
+    onUpdateNote: (Note) -> Unit,
+    onDeleteNote: (Note) -> Unit
+) {
     var newFolderName by remember { mutableStateOf("") }
     var newFolderEmoji by remember { mutableStateOf("") }
 
-    // NEW: State to trigger the popup window!
     var showAddDialog by remember { mutableStateOf(false) }
 
     var openedFolder by remember { mutableStateOf<ProjectFolder?>(null) }
@@ -66,7 +70,6 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
 
 
     if (openedFolder != null) {
-        // Intercept the back button so it just closes the folder
         BackHandler {
             openedFolder = null
         }
@@ -74,8 +77,10 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
         FolderDetailScreen(
             folder = openedFolder!!,
             notes = notes,
-            noteDao = noteDao,
-            onBack = { openedFolder = null }
+            onBack = { openedFolder = null },
+            onAddNote = onAddNote,
+            onUpdateNote = onUpdateNote,
+            onDeleteNote = onDeleteNote
         )
     } else {
         // We use a Box here so we can float the Add button over the grid
@@ -91,7 +96,6 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // The Grid (Now with more breathing room at the top!)
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
@@ -105,7 +109,7 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
                             folder = folder,
                             noteCount = noteCount,
                             onDelete = { folderToDelete = folder },
-                            onEdit = { folderToEdit = folder }, // <-- NEW: Triggers the edit popup
+                            onEdit = { folderToEdit = folder },
                             onClick = { openedFolder = folder }
                         )
                     }
@@ -117,7 +121,6 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
                 onClick = { showAddDialog = true },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    // We pad the bottom heavily so it sits safely above your custom nav bar
                     .padding(end = 24.dp, bottom = 190.dp),
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -130,7 +133,7 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = {
                         showAddDialog = false
-                        nameError = null // Clear error on dismiss
+                        nameError = null
                     },
                     title = { Text("Create New Folder") },
                     text = {
@@ -160,14 +163,12 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
                                 value = newFolderName,
                                 onValueChange = {
                                     newFolderName = it
-                                    nameError = null // Hide error as soon as they start typing again!
+                                    nameError = null
                                 },
                                 label = { Text("Folder Name") },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth(),
-                                // NEW: Tell the text field to turn red if there is an error
                                 isError = nameError != null,
-                                // NEW: Show the error message text below the box
                                 supportingText = {
                                     if (nameError != null) {
                                         Text(text = nameError!!, color = MaterialTheme.colorScheme.error)
@@ -190,20 +191,16 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
                                 val trimmedName = newFolderName.trim()
 
                                 if (trimmedName.isNotBlank()) {
-                                    // 1. Check if the folder name already exists (ignoring upper/lowercase!)
                                     val isDuplicate = folders.any { it.name.equals(trimmedName, ignoreCase = true) }
 
                                     if (isDuplicate) {
-                                        // 2. It exists! Trigger the error and stop the save.
                                         nameError = "A folder with this name already exists"
                                     } else {
-                                        // 3. It's unique! Safe to save.
                                         val finalEmoji = newFolderEmoji.ifBlank { "📂" }
                                         val newFolder = ProjectFolder(trimmedName, finalEmoji)
 
-                                        scope.launch(Dispatchers.IO) { folderDao.insertFolder(newFolder) }
+                                        onAddFolder(newFolder)
 
-                                        // Clean up form and close
                                         newFolderName = ""
                                         newFolderEmoji = ""
                                         nameError = null
@@ -239,13 +236,8 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
                     confirmButton = {
                         Button(
                             onClick = {
-                                scope.launch(Dispatchers.IO) {
-                                    // 1. Tell the database to wipe all notes matching this folder ID
-                                    noteDao.deleteNotesByFolder(folderToDelete!!.id)
-                                    // 2. Tell the database to delete the folder
-                                    folderDao.deleteFolder(folderToDelete!!)
-                                    folderToDelete = null
-                                }
+                                onDeleteFolder(folderToDelete!!)
+
                             },
                             colors = androidx.compose.material3.ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.error
@@ -263,7 +255,6 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
             }
             // --- THE EDIT FOLDER POP-UP WINDOW ---
             if (folderToEdit != null) {
-                // Pre-fill the text boxes with the folder's current data
                 var editName by remember { mutableStateOf(folderToEdit!!.name) }
                 var editEmoji by remember { mutableStateOf(folderToEdit!!.emoji) }
                 var editNameError by remember { mutableStateOf<String?>(null) }
@@ -320,7 +311,6 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
                             onClick = {
                                 val trimmedName = editName.trim()
                                 if (trimmedName.isNotBlank()) {
-                                    // Check for duplicates, but ignore the folder we are currently editing!
                                     val isDuplicate = folders.any { it.name.equals(trimmedName, ignoreCase = true) && it.id != folderToEdit!!.id }
 
                                     if (isDuplicate) {
@@ -330,7 +320,7 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
 
                                         // Take a snapshot and keep the original ID so Room overwrites it
                                         val updatedFolder = folderToEdit!!.copy(name = trimmedName, emoji = finalEmoji)
-                                        scope.launch(Dispatchers.IO) { folderDao.insertFolder(updatedFolder) }
+                                        onUpdateFolder(updatedFolder)
 
                                         folderToEdit = null
                                     }
@@ -351,23 +341,25 @@ fun FoldersScreen(folders: List<ProjectFolder>, notes: List<Note>, folderDao: Fo
 
 // NEW: The screen that shows when you open a folder
 @Composable
-fun FolderDetailScreen(folder: ProjectFolder, notes: List<Note>, noteDao: NoteDao, onBack: () -> Unit) {
+fun FolderDetailScreen(
+    folder: ProjectFolder,
+    notes: List<Note>,
+    onBack: () -> Unit,
+    onAddNote: (Note) -> Unit,
+    onUpdateNote: (Note) -> Unit,
+    onDeleteNote: (Note) -> Unit
+) {
     var titleText by remember { mutableStateOf("") }
     var contentText by remember { mutableStateOf("") }
     var editingNote by remember { mutableStateOf<Note?>(null) }
 
-    // NEW: We need a coroutine scope to talk to the database
-    val scope = rememberCoroutineScope()
-
-    // Filter the main notes list so we ONLY see notes for this folder
     val folderNotes = notes.filter { it.folderId == folder.id }
 
     if (editingNote != null) {
         EditNoteFullscreen(
             note = editingNote!!,
             onBack = { updatedNote ->
-                // Swap out the old notes[index] logic for a database update
-                scope.launch(Dispatchers.IO) { noteDao.insertNote(updatedNote) }
+                onUpdateNote(updatedNote)
                 editingNote = null
             }
         )
@@ -398,13 +390,8 @@ fun FolderDetailScreen(folder: ProjectFolder, notes: List<Note>, noteDao: NoteDa
             Button(
                 onClick = {
                     if (contentText.isNotBlank() || titleText.isNotBlank()) {
-                        // 1. Take a snapshot FIRST (Don't forget the folder.id!)
                         val newNote = Note(titleText, contentText, folder.id)
-
-                        // 2. Send to background
-                        scope.launch(Dispatchers.IO) { noteDao.insertNote(newNote) }
-
-                        // 3. Safe to clear
+                        onAddNote(newNote)
                         titleText = ""
                         contentText = ""
                     }
@@ -424,7 +411,7 @@ fun FolderDetailScreen(folder: ProjectFolder, notes: List<Note>, noteDao: NoteDa
                 items(folderNotes, key = { it.id }) { note ->
                     NoteCard(
                         note = note,
-                        onDelete = {scope.launch(Dispatchers.IO) { noteDao.deleteNote(note) } }, // Delete via DAO
+                        onDelete = {onDeleteNote(note) },
                         onClick = { editingNote = note }
                     )
                 }

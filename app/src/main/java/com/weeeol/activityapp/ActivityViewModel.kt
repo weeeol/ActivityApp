@@ -9,12 +9,12 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import android.content.Context
 import androidx.lifecycle.ViewModelProvider
+import kotlinx.coroutines.Dispatchers
 
 class ActivityViewModel(
     private val dataManager: DataManager,
-    // Exposing the DAOs so we don't have to rewrite your entire Notes/Folders UI yet
-    val noteDao: NoteDao,
-    val folderDao: FolderDao
+    private val noteDao: NoteDao,     // <-- NOW PRIVATE
+    private val folderDao: FolderDao  // <-- NOW PRIVATE
 ) : ViewModel() {
 
     // --- Theme State ---
@@ -84,6 +84,38 @@ class ActivityViewModel(
     fun resetWater() {
         _waterGlasses.value = 0
         dataManager.saveWaterIntake(0)
+    }
+
+    // --- FOLDER INTENTS ---
+    fun addFolder(folder: ProjectFolder) {
+        viewModelScope.launch(Dispatchers.IO) { folderDao.insertFolder(folder) }
+    }
+
+    fun updateFolder(folder: ProjectFolder) {
+        // Room's REPLACE strategy means insert handles updates too
+        viewModelScope.launch(Dispatchers.IO) { folderDao.insertFolder(folder) }
+    }
+
+    fun deleteFolder(folder: ProjectFolder) {
+        viewModelScope.launch(Dispatchers.IO) {
+            // Business logic moved out of the UI!
+            // We wipe the notes first, then the folder.
+            noteDao.deleteNotesByFolder(folder.id)
+            folderDao.deleteFolder(folder)
+        }
+    }
+
+    // --- NOTE INTENTS ---
+    fun addNote(note: Note) {
+        viewModelScope.launch(Dispatchers.IO) { noteDao.insertNote(note) }
+    }
+
+    fun updateNote(note: Note) {
+        viewModelScope.launch(Dispatchers.IO) { noteDao.insertNote(note) }
+    }
+
+    fun deleteNote(note: Note) {
+        viewModelScope.launch(Dispatchers.IO) { noteDao.deleteNote(note) }
     }
 
     fun addTimer(timer: TimerEvent) {

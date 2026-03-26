@@ -68,9 +68,12 @@ import kotlinx.coroutines.launch
 import androidx.activity.compose.BackHandler
 
 @Composable
-fun NotesScreen(notes: List<Note>, noteDao: NoteDao) {
-    val scope = rememberCoroutineScope()
-
+fun NotesScreen(
+    notes: List<Note>,
+    onAddNote: (Note) -> Unit,
+    onUpdateNote: (Note) -> Unit,
+    onDeleteNote: (Note) -> Unit
+) {
     var titleText by remember { mutableStateOf("") }
     var contentText by remember { mutableStateOf("") }
     var showAddNoteDialog by remember { mutableStateOf(false) }
@@ -87,7 +90,7 @@ fun NotesScreen(notes: List<Note>, noteDao: NoteDao) {
         EditNoteFullscreen(
             note = editingNote!!,
             onBack = { updatedNote ->
-                scope.launch(Dispatchers.IO) { noteDao.insertNote(updatedNote) }
+                onUpdateNote(updatedNote)
                 editingNote = null
             }
         )
@@ -143,7 +146,7 @@ fun NotesScreen(notes: List<Note>, noteDao: NoteDao) {
                     items(filteredNotes, key = { it.id }) { note ->
                         NoteCard(
                             note = note,
-                            onDelete = { scope.launch(Dispatchers.IO) { noteDao.deleteNote(note) } },
+                            onDelete = { onDeleteNote(note) },
                             onClick = { editingNote = note }
                         )
                     }
@@ -187,7 +190,7 @@ fun NotesScreen(notes: List<Note>, noteDao: NoteDao) {
                             onClick = {
                                 if (contentText.isNotBlank() || titleText.isNotBlank()) {
                                     val newNote = Note(titleText, contentText)
-                                    scope.launch(Dispatchers.IO) { noteDao.insertNote(newNote) }
+                                    onAddNote(newNote)
                                     titleText = ""
                                     contentText = ""
                                     showAddNoteDialog = false
