@@ -79,7 +79,7 @@ fun ActivityAppMainScreen(viewModel: ActivityViewModel) {
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
-                    .padding(top = 16.dp, end = 16.dp)
+                    .padding(top = 5.dp, end = 16.dp)
             ) {
                 Icon(imageVector = Icons.Default.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onBackground)
             }
