@@ -2,43 +2,11 @@ package com.weeeol.activityapp
 
 import android.content.Context
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 
 class DataManager(context: Context) {
     private val sharedPreferences = context.getSharedPreferences("ActivityAppDatabase", Context.MODE_PRIVATE)
     private val gson = Gson()
 
-    // --- NOTES SAVE/LOAD ---
-    fun saveNotes(notes: List<Note>) {
-        val jsonString = gson.toJson(notes)
-        sharedPreferences.edit().putString("saved_notes", jsonString).apply()
-    }
-
-    fun loadNotes(): MutableList<Note> {
-        val jsonString = sharedPreferences.getString("saved_notes", null) ?: return mutableListOf()
-        val type = object : TypeToken<MutableList<Note>>() {}.type
-        return gson.fromJson(jsonString, type)
-    }
-
-    // --- FOLDERS SAVE/LOAD ---
-    fun saveFolders(folders: List<ProjectFolder>): MutableList<ProjectFolder> {
-        val jsonString = gson.toJson(folders)
-        sharedPreferences.edit().putString("saved_folders", jsonString).apply()
-        return folders.toMutableList()
-    }
-
-    fun loadFolders(): MutableList<ProjectFolder> {
-        val jsonString = sharedPreferences.getString("saved_folders", null)
-        if (jsonString == null) {
-            return mutableListOf(
-                ProjectFolder("College Assignments", "🎓"),
-                ProjectFolder("Game Dev", "🎮"),
-                ProjectFolder("Python & Git", "💻")
-            )
-        }
-        val type = object : TypeToken<MutableList<ProjectFolder>>() {}.type
-        return gson.fromJson(jsonString, type)
-    }
     // --- TIMERS SAVE/LOAD ---
     fun saveTimers(timers: List<TimerEvent>) {
         val formatter = java.time.format.DateTimeFormatter.ISO_LOCAL_TIME
