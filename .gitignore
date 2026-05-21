@@ -13,3 +13,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+/.idea/appInsightsSettings.xml
+/.idea/dictionaries
+/.idea/markdown.xml
+/.idea/material_theme_project_new.xml
