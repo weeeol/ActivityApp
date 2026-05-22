@@ -13,8 +13,8 @@ import kotlinx.coroutines.Dispatchers
 
 class ActivityViewModel(
     private val dataManager: DataManager,
-    private val noteDao: NoteDao,     // <-- NOW PRIVATE
-    private val folderDao: FolderDao  // <-- NOW PRIVATE
+    private val noteDao: NoteDao,
+    private val folderDao: FolderDao
 ) : ViewModel() {
 
     // --- Theme State ---
@@ -24,6 +24,10 @@ class ActivityViewModel(
     // --- Navigation State ---
     private val _selectedNavItem = MutableStateFlow(NavItem.Health)
     val selectedNavItem: StateFlow<NavItem> = _selectedNavItem.asStateFlow()
+
+    // --- UI State ---
+    private val _isEditingNote = MutableStateFlow(false)
+    val isEditingNote: StateFlow<Boolean> = _isEditingNote.asStateFlow()
 
     // --- Water Intake State ---
     private val _waterGlasses = MutableStateFlow(0)
@@ -66,6 +70,10 @@ class ActivityViewModel(
 
     fun selectNavItem(item: NavItem) {
         _selectedNavItem.value = item
+    }
+
+    fun setEditingNote(isEditing: Boolean) {
+        _isEditingNote.value = isEditing
     }
 
     fun addWater() {

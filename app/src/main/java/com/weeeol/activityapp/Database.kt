@@ -27,11 +27,14 @@ interface FolderDao {
 // --- 2. THE NOTE DAO ---
 @Dao
 interface NoteDao {
-    @Query("SELECT * FROM notes ORDER BY createdAt DESC")
+
+    // UPDATE: Now sorts by pinned status first, then by date created
+    @Query("SELECT * FROM notes ORDER BY isPinned DESC, createdAt DESC")
     fun getAllNotes(): Flow<List<Note>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertNote(note: Note)
+
     @Delete
     suspend fun deleteNote(note: Note)
 
@@ -40,7 +43,8 @@ interface NoteDao {
 }
 
 // --- 3. THE ACTUAL DATABASE ---
-@Database(entities = [ProjectFolder::class, Note::class], version = 2, exportSchema = true)
+// UPDATE: Incremented version to 3 due to the new isPinned column
+@Database(entities = [ProjectFolder::class, Note::class], version = 3, exportSchema = true)
 abstract class AppDatabase : RoomDatabase() {
 
     // Connect the DAOs

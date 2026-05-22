@@ -53,6 +53,7 @@ class MainActivity : ComponentActivity() {
 fun ActivityAppMainScreen(viewModel: ActivityViewModel) {
 
     val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
+    val isEditingNote by viewModel.isEditingNote.collectAsStateWithLifecycle()
 
     val selectedItem by viewModel.selectedNavItem.collectAsStateWithLifecycle()
     val waterGlasses by viewModel.waterGlasses.collectAsStateWithLifecycle()
@@ -74,24 +75,36 @@ fun ActivityAppMainScreen(viewModel: ActivityViewModel) {
                 modifier = Modifier.fillMaxSize()
             )
 
-            IconButton(
-                onClick = { showSettings = true },
+            // Hide the Settings button when editing a note
+            androidx.compose.animation.AnimatedVisibility(
+                visible = !isEditingNote,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
-                    .padding(top = 5.dp, end = 16.dp)
+                    .padding(top = 5.dp, end = 16.dp),
+                enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.scaleIn(initialScale = 0.8f),
+                exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.scaleOut(targetScale = 0.8f)
             ) {
-                Icon(imageVector = Icons.Default.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onBackground)
+                IconButton(onClick = { showSettings = true }) {
+                    Icon(imageVector = Icons.Default.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onBackground)
+                }
             }
 
-            FloatingNavigationBar(
-                selectedItem = selectedItem,
-                onItemSelected = { viewModel.selectNavItem(it) },
+            // Hide the Navigation bar when editing a note
+            androidx.compose.animation.AnimatedVisibility(
+                visible = !isEditingNote,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
-                    .padding(bottom = 32.dp)
-            )
+                    .padding(bottom = 32.dp),
+                enter = androidx.compose.animation.slideInVertically(initialOffsetY = { it }) + androidx.compose.animation.fadeIn(),
+                exit = androidx.compose.animation.slideOutVertically(targetOffsetY = { it }) + androidx.compose.animation.fadeOut()
+            ) {
+                FloatingNavigationBar(
+                    selectedItem = selectedItem,
+                    onItemSelected = { viewModel.selectNavItem(it) }
+                )
+            }
         } else {
             SettingsScreen(
                 isDarkMode = isDarkMode,
@@ -128,7 +141,8 @@ fun MainContent(
                 notes = notes,
                 onAddNote = { viewModel.addNote(it) },
                 onUpdateNote = { viewModel.updateNote(it) },
-                onDeleteNote = { viewModel.deleteNote(it) }
+                onDeleteNote = { viewModel.deleteNote(it) },
+                onEditingStateChange = { viewModel.setEditingNote(it) }
             )
             NavItem.Folders -> FoldersScreen(
                 folders = folders,
@@ -138,7 +152,8 @@ fun MainContent(
                 onDeleteFolder = { viewModel.deleteFolder(it) },
                 onAddNote = { viewModel.addNote(it) },
                 onUpdateNote = { viewModel.updateNote(it) },
-                onDeleteNote = { viewModel.deleteNote(it) }
+                onDeleteNote = { viewModel.deleteNote(it) },
+                onEditingStateChange = { viewModel.setEditingNote(it) }
             )
             NavItem.Timer -> TimerScreen(
                 timers = timers,

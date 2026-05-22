@@ -56,7 +56,8 @@ fun FoldersScreen(
     onDeleteFolder: (ProjectFolder) -> Unit,
     onAddNote: (Note) -> Unit,
     onUpdateNote: (Note) -> Unit,
-    onDeleteNote: (Note) -> Unit
+    onDeleteNote: (Note) -> Unit,
+    onEditingStateChange: (Boolean) -> Unit
 ) {
     var newFolderName by remember { mutableStateOf("") }
     var newFolderEmoji by remember { mutableStateOf("") }
@@ -80,7 +81,8 @@ fun FoldersScreen(
             onBack = { openedFolder = null },
             onAddNote = onAddNote,
             onUpdateNote = onUpdateNote,
-            onDeleteNote = onDeleteNote
+            onDeleteNote = onDeleteNote,
+            onEditingStateChange = onEditingStateChange
         )
     } else {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -344,7 +346,8 @@ fun FolderDetailScreen(
     onBack: () -> Unit,
     onAddNote: (Note) -> Unit,
     onUpdateNote: (Note) -> Unit,
-    onDeleteNote: (Note) -> Unit
+    onDeleteNote: (Note) -> Unit,
+    onEditingStateChange: (Boolean) -> Unit
 ) {
     var titleText by remember { mutableStateOf("") }
     var contentText by remember { mutableStateOf("") }
@@ -358,6 +361,7 @@ fun FolderDetailScreen(
             onBack = { updatedNote ->
                 onUpdateNote(updatedNote)
                 editingNote = null
+                onEditingStateChange(false)
             }
         )
     } else {
@@ -407,7 +411,10 @@ fun FolderDetailScreen(
                     NoteCard(
                         note = note,
                         onDelete = {onDeleteNote(note) },
-                        onClick = { editingNote = note }
+                        onClick = {
+                            editingNote = note
+                            onEditingStateChange(true)
+                        }
                     )
                 }
             }

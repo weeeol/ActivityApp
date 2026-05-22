@@ -21,6 +21,7 @@ enum class NavItem(val title: String, val icon: ImageVector) {
     Folders("Folders", Icons.Default.Folder),
     Timer("Timer", Icons.Default.PlayArrow)
 }
+
 data class Particle(
     val angle: Float,
     val speed: Float,
@@ -34,7 +35,7 @@ data class Note(
     var folderId: String? = null,
     var timestamp: String = java.text.SimpleDateFormat("MMM dd, yyyy • hh:mm a", java.util.Locale.getDefault()).format(java.util.Date()),
     var isCodeMode: Boolean = false,
-
+    var isPinned: Boolean = false, // <-- Added pinned state
 
     @PrimaryKey
     val id: String = java.util.UUID.randomUUID().toString(),
