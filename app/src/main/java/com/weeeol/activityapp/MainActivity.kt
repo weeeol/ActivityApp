@@ -57,6 +57,9 @@ fun ActivityAppMainScreen(viewModel: ActivityViewModel) {
 
     val selectedItem by viewModel.selectedNavItem.collectAsStateWithLifecycle()
     val waterGlasses by viewModel.waterGlasses.collectAsStateWithLifecycle()
+    val waterGoal by viewModel.waterGoal.collectAsStateWithLifecycle()
+    val steps by viewModel.steps.collectAsStateWithLifecycle()
+    val stepGoal by viewModel.stepGoal.collectAsStateWithLifecycle()
     val timers by viewModel.timers.collectAsStateWithLifecycle()
     val notes by viewModel.notes.collectAsStateWithLifecycle(initialValue = emptyList())
     val folders by viewModel.folders.collectAsStateWithLifecycle(initialValue = emptyList())
@@ -64,7 +67,6 @@ fun ActivityAppMainScreen(viewModel: ActivityViewModel) {
     var showSettings by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        AmbientBackground() // Apply ambient background to the whole app edge-to-edge
         if (!showSettings) {
             MainContent(
                 selectedItem = selectedItem,
@@ -73,6 +75,9 @@ fun ActivityAppMainScreen(viewModel: ActivityViewModel) {
                 folders = folders,
                 viewModel = viewModel,
                 waterGlasses = waterGlasses,
+                waterGoal = waterGoal,
+                steps = steps,
+                stepGoal = stepGoal,
                 modifier = Modifier.fillMaxSize()
             )
 
@@ -110,7 +115,15 @@ fun ActivityAppMainScreen(viewModel: ActivityViewModel) {
             SettingsScreen(
                 isDarkMode = isDarkMode,
                 onThemeToggle = { viewModel.toggleTheme() },
-                onClose = { showSettings = false }
+                onClose = { showSettings = false },
+                notesCount = notes.size,
+                foldersCount = folders.size,
+                timersCount = timers.size,
+                waterGlasses = waterGlasses,
+                stepGoal = stepGoal,
+                waterGoal = waterGoal,
+                onUpdateStepGoal = { viewModel.setStepGoal(it) },
+                onUpdateWaterGoal = { viewModel.setWaterGoal(it) }
             )
         }
     }
@@ -124,6 +137,9 @@ fun MainContent(
     folders: List<ProjectFolder>,
     viewModel: ActivityViewModel,
     waterGlasses: Int,
+    waterGoal: Int,
+    steps: Int,
+    stepGoal: Int,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -133,9 +149,14 @@ fun MainContent(
     ) {
         when (selectedItem) {
             NavItem.Health -> HealthScreen(
+                steps = steps,
+                stepsGoal = stepGoal,
                 waterGlasses = waterGlasses,
+                waterGoal = waterGoal,
                 onAddWater = { viewModel.addWater() },
-                onResetWater = { viewModel.resetWater() }
+                onResetWater = { viewModel.resetWater() },
+                onUpdateSteps = { viewModel.updateSteps(it) },
+                onUpdateStepGoal = { viewModel.setStepGoal(it) }
             )
             NavItem.Notes -> NotesScreen(
                 notes = notes,
@@ -158,7 +179,9 @@ fun MainContent(
             NavItem.Timer -> TimerScreen(
                 timers = timers,
                 onAddTimer = { viewModel.addTimer(it) },
-                onDeleteTimer = { viewModel.removeTimer(it) }
+                onDeleteTimer = { viewModel.removeTimer(it) },
+                onToggleTimer = { viewModel.toggleTimer(it) },
+                onResetTimer = { viewModel.resetTimer(it) }
             )
         }
     }

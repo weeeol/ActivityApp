@@ -15,7 +15,8 @@ class DataManager(context: Context) {
             TimerSaveData(
                 activityName = timer.activityName,
                 remainingSeconds = timer.remainingSeconds,
-                scheduledTime = timer.scheduledTime?.format(formatter)
+                scheduledTime = timer.scheduledTime?.format(formatter),
+                totalSeconds = timer.totalSeconds
             )
         }
 
@@ -36,7 +37,8 @@ class DataManager(context: Context) {
             TimerEvent(
                 activityName = snapshot.activityName,
                 durationMinutes = 0,
-                scheduledTime = parsedTime
+                scheduledTime = parsedTime,
+                totalSecondsParam = snapshot.totalSeconds ?: snapshot.remainingSeconds
             ).apply {
                 this.remainingSeconds = snapshot.remainingSeconds
                 this.isRunning = false

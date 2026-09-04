@@ -45,10 +45,12 @@ data class Note(
 class TimerEvent(
     val activityName: String,
     durationMinutes: Int,
-    var scheduledTime: LocalTime? = null
+    var scheduledTime: LocalTime? = null,
+    totalSecondsParam: Long? = null
 ) {
     val id: String = java.util.UUID.randomUUID().toString()
-    var remainingSeconds by mutableLongStateOf((durationMinutes * 60).toLong())
+    val totalSeconds: Long = totalSecondsParam ?: ((if (durationMinutes > 0) durationMinutes else 1) * 60).toLong()
+    var remainingSeconds by mutableLongStateOf(totalSeconds)
     var isRunning by mutableStateOf(false)
 }
 
@@ -65,5 +67,6 @@ data class ProjectFolder(
 data class TimerSaveData(
     val activityName: String,
     val remainingSeconds: Long,
-    val scheduledTime: String? = null
+    val scheduledTime: String? = null,
+    val totalSeconds: Long? = null
 )

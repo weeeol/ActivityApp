@@ -1,13 +1,11 @@
 package com.weeeol.activityapp
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -41,14 +39,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -76,35 +75,33 @@ fun FloatingNavigationBar(
             val targetOffset = (barWidthPx / navItems.size) * selectedIndex
             indicatorOffset.animateTo(
                 targetValue = targetOffset,
-                animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
+                animationSpec = spring(
+                    dampingRatio = 0.8f,
+                    stiffness = Spring.StiffnessMediumLow
+                )
             )
         }
     }
 
-    val glowColor = MaterialTheme.colorScheme.primary
-
     Box(
         modifier = modifier
-            .padding(horizontal = 24.dp)
-            .height(72.dp)
+            .padding(horizontal = 20.dp)
+            .height(66.dp)
             .fillMaxWidth()
-            .clip(RoundedCornerShape(36.dp))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+            .clip(RoundedCornerShape(33.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
             .border(
-                width = 1.dp,
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        glowColor.copy(alpha = 0.8f),
-                        glowColor.copy(alpha = 0.2f)
-                    )
+                BorderStroke(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
                 ),
-                shape = RoundedCornerShape(36.dp)
+                shape = RoundedCornerShape(33.dp)
             )
             .onSizeChanged { size -> barWidthPx = size.width.toFloat() }
-            .pointerInput(barWidthPx) {
+            .pointerInput(barWidthPx, selectedIndex) {
                 detectHorizontalDragGestures(
-                    onDragStart = { 
-                        isDragging = true 
+                    onDragStart = {
+                        isDragging = true
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     },
                     onHorizontalDrag = { _, dragAmount ->
@@ -121,10 +118,9 @@ fun FloatingNavigationBar(
                         isDragging = false
                         if (barWidthPx > 0) {
                             val tabWidthPx = barWidthPx / navItems.size
-                            val centerPx = indicatorOffset.value + (tabWidthPx / 2)
-                            val closestIndex = (centerPx / tabWidthPx).toInt().coerceIn(0, navItems.size - 1)
+                            val closestIndex = kotlin.math.round(indicatorOffset.value / tabWidthPx).toInt().coerceIn(0, navItems.size - 1)
 
-                            if (closestIndex != selectedIndex) {
+                            if (closestIndex != currentSelectedIndex) {
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 currentOnItemSelected(navItems[closestIndex])
                             }
@@ -132,7 +128,10 @@ fun FloatingNavigationBar(
                             coroutineScope.launch {
                                 indicatorOffset.animateTo(
                                     targetValue = tabWidthPx * closestIndex,
-                                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
+                                    animationSpec = spring(
+                                        dampingRatio = 0.8f,
+                                        stiffness = Spring.StiffnessMediumLow
+                                    )
                                 )
                             }
                         }
@@ -143,7 +142,10 @@ fun FloatingNavigationBar(
                             coroutineScope.launch {
                                 indicatorOffset.animateTo(
                                     targetValue = (barWidthPx / navItems.size) * currentSelectedIndex,
-                                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
+                                    animationSpec = spring(
+                                        dampingRatio = 0.8f,
+                                        stiffness = Spring.StiffnessMediumLow
+                                    )
                                 )
                             }
                         }
@@ -151,23 +153,41 @@ fun FloatingNavigationBar(
                 )
             }
     ) {
-
+        // Fluid Sliding Indicator Pill (Apple Style)
         if (barWidthPx > 0) {
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
                     .fillMaxWidth(1f / navItems.size)
                     .offset { IntOffset(indicatorOffset.value.roundToInt(), 0) }
-                    .padding(8.dp)
-                    .clip(RoundedCornerShape(28.dp))
-                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f))
+                    .padding(6.dp)
+                    .clip(RoundedCornerShape(27.dp))
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f))
             )
         }
 
-        Row(modifier = Modifier.fillMaxSize()) {
+        // Navigation Items (Stable layout, no jitter)
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             navItems.forEach { item ->
                 val isSelected = selectedItem == item
-                val contentColor = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+
+                val contentColor by animateColorAsState(
+                    targetValue = if (isSelected) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    label = "navItemColor"
+                )
+
+                val scale by animateFloatAsState(
+                    targetValue = if (isSelected) 1.05f else 1.0f,
+                    animationSpec = spring(
+                        dampingRatio = 0.7f,
+                        stiffness = Spring.StiffnessMedium
+                    ),
+                    label = "navItemScale"
+                )
 
                 Box(
                     modifier = Modifier
@@ -176,40 +196,36 @@ fun FloatingNavigationBar(
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
-                            onClick = { 
-                                if (item != selectedItem) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                onItemSelected(item) 
+                            onClick = {
+                                if (item != selectedItem) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onItemSelected(item)
+                                }
                             }
                         ),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.scale(scale)
                     ) {
                         Icon(
                             imageVector = item.icon,
                             contentDescription = item.title,
                             tint = contentColor,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(22.dp)
                         )
-
-                        AnimatedVisibility(
-                            visible = isSelected,
-                            enter = fadeIn() + expandVertically(),
-                            exit = fadeOut() + shrinkVertically()
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = item.title,
-                                    color = contentColor,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1
-                                )
-                            }
-                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = item.title,
+                            color = contentColor,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 11.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                            ),
+                            maxLines = 1
+                        )
                     }
                 }
             }

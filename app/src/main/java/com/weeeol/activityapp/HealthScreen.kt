@@ -1,17 +1,28 @@
 package com.weeeol.activityapp
 
+import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import android.os.Build
 import androidx.compose.animation.core.*
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,181 +30,79 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
-import android.content.Context
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
-import androidx.compose.ui.platform.LocalContext
-import android.os.Build
-import androidx.compose.material.icons.filled.WbSunny
-import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 
-// --- 1. THE AMBIENT ANIMATED BACKGROUND ---
+// Apple-style colors
+val MoveColor = Color(0xFFFA114F)
+val ExerciseColor = Color(0xFF92E01D)
+val StandColor = Color(0xFF1DDAE2)
+
 @Composable
-fun AmbientBackground() {
-    val infiniteTransition = rememberInfiniteTransition(label = "ambient")
-
-    // Slow, drifting animation from 0 to 1 over 15 seconds
-    val phase by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(15000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ), label = "phase"
-    )
-
-    val color1 = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-    val color2 = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)
-
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        val width = size.width
-        val height = size.height
-
-        // Drifting orb 1
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(color1, Color.Transparent),
-                center = Offset(width * phase, height * 0.2f),
-                radius = width * 0.8f
-            ),
-            radius = width * 0.8f,
-            center = Offset(width * phase, height * 0.2f)
-        )
-
-        // Drifting orb 2
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(color2, Color.Transparent),
-                center = Offset(width * (1f - phase), height * 0.8f),
-                radius = width * 0.9f
-            ),
-            radius = width * 0.9f,
-            center = Offset(width * (1f - phase), height * 0.8f)
-        )
-    }
-}
-
-// --- 2. THE GLASSMORPHISM CARD COMPONENT ---
-@Composable
-fun GlassCard(
+fun IosCard(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit
 ) {
     var boxModifier = modifier
-        .clip(RoundedCornerShape(28.dp))
-        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
+        .clip(RoundedCornerShape(20.dp))
+        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
         .border(
             width = 1.dp,
-            brush = Brush.linearGradient(
-                colors = listOf(
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
-                )
-            ),
-            shape = RoundedCornerShape(28.dp)
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+            shape = RoundedCornerShape(20.dp)
         )
-
+        
     if (onClick != null) {
         boxModifier = boxModifier.clickable { onClick() }
     }
 
     Box(
-        modifier = boxModifier.padding(20.dp),
-        contentAlignment = Alignment.Center,
+        modifier = boxModifier.padding(16.dp),
         content = content
     )
 }
 
-// --- 3. THE FLOATING ARC STAT COMPONENT ---
 @Composable
-fun StatArc(
-    progress: Float,
-    color: Color,
-    title: String,
-    current: String,
-    goal: String,
-    modifier: Modifier = Modifier
+fun HealthScreen(
+    waterGlasses: Int,
+    steps: Int = 0,
+    stepsGoal: Int = 10000,
+    waterGoal: Int = 8,
+    onUpdateSteps: (Int) -> Unit = {},
+    onUpdateStepGoal: (Int) -> Unit = {},
+    onAddWater: () -> Unit,
+    onResetWater: () -> Unit
 ) {
-    val animProgress by animateFloatAsState(
-        targetValue = progress,
-        animationSpec = spring(dampingRatio = 0.8f, stiffness = 50f),
-        label = "arcAnim"
-    )
-
-    Box(contentAlignment = Alignment.Center, modifier = modifier.fillMaxWidth()) {
-        Canvas(modifier = Modifier.size(120.dp)) {
-            val strokeWidth = 12.dp.toPx()
-
-            drawArc(
-                color = color.copy(alpha = 0.15f),
-                startAngle = 140f,
-                sweepAngle = 260f,
-                useCenter = false,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-            )
-
-            drawArc(
-                color = color,
-                startAngle = 140f,
-                sweepAngle = 260f * animProgress,
-                useCenter = false,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-            )
-        }
-
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = title, style = MaterialTheme.typography.labelMedium, color = Color.Gray)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(text = current, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text(text = goal, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-        }
-    }
-}
-
-// --- THE MAIN SCREEN ---
-@Composable
-fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> Unit) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
-    val waterGoal = 8
     var showWaterExplosion by remember { mutableStateOf(false) }
     var isDashboardExpanded by remember { mutableStateOf(false) }
 
-    // --- SENSOR & GOAL STATES ---
     val dataManager = remember { DataManager(context) }
-    var steps by remember { mutableIntStateOf(dataManager.loadSteps()) }
-    var stepsGoal by remember { mutableIntStateOf(dataManager.loadStepGoal()) }
     var showGoalDialog by remember { mutableStateOf(false) }
     var goalInput by remember { mutableStateOf("") }
     var lastSensorValue by remember { mutableFloatStateOf(dataManager.loadLastSensorValue()) }
 
-    // --- WEATHER STATES ---
     var weatherLocation by remember { mutableStateOf("Mangaluru") }
     var weatherCondition by remember { mutableStateOf("Sunny") }
     var showWeatherDialog by remember { mutableStateOf(false) }
     var tempLocationInput by remember { mutableStateOf("") }
 
-    // --- SENSOR INTEGRATION LOGIC ---
+    // Sensor logic
     DisposableEffect(Unit) {
         val sensorManager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val attributionContext = context.createAttributionContext("StepCounterFeature")
@@ -214,8 +123,8 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
                         var delta = currentSensorValue - lastSensorValue
                         if (delta < 0) delta = currentSensorValue
                         if (delta > 0) {
-                            steps += delta.toInt()
-                            dataManager.saveSteps(steps)
+                            val newSteps = steps + delta.toInt()
+                            onUpdateSteps(newSteps)
                             lastSensorValue = currentSensorValue
                             dataManager.saveLastSensorValue(lastSensorValue)
                         }
@@ -241,186 +150,294 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
     val stepsProgress = if (stepsGoal > 0) (steps.toFloat() / stepsGoal).coerceIn(0f, 1f) else 0f
     val waterProgress = (waterGlasses.toFloat() / waterGoal).coerceIn(0f, 1f)
 
-    val moveColor = Color(0xFFFA114F)
-    val exerciseColor = Color(0xFF92E01D)
-    val standColor = Color(0xFF1DDAE2)
+    val todayFormatted = remember {
+        java.text.SimpleDateFormat("EEEE, MMMM d", java.util.Locale.getDefault()).format(java.util.Date()).uppercase()
+    }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(top = 8.dp)
         ) {
+            // Header (Aligned with Notes, Folders, and Timer screens)
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp).clickable { isDashboardExpanded = false },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .clickable { isDashboardExpanded = false },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = if (isDashboardExpanded) "Dashboard" else "Activity",
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold
-                )
+                Column {
+                    Text(
+                        text = todayFormatted,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Gray,
+                        letterSpacing = 1.2.sp
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Summary",
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
-            androidx.compose.animation.AnimatedContent(
-                targetState = isDashboardExpanded,
-                transitionSpec = {
-                    (androidx.compose.animation.fadeIn(animationSpec = tween(400)) + androidx.compose.animation.scaleIn(initialScale = 0.8f, animationSpec = tween(400)))
-                        .togetherWith(
-                            androidx.compose.animation.fadeOut(animationSpec = tween(400)) + androidx.compose.animation.scaleOut(targetScale = 0.8f, animationSpec = tween(400)))
-                },
-                label = "dashboard_split"
-            ) { expanded ->
-                if (!expanded) {
-                    // --- STATE 1: THE UNIFIED HERO RING & WIDE WEATHER WIDGET ---
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(24.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(320.dp)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = { isDashboardExpanded = true }
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            ActivityRings(
-                                moveProgress = sleepProgress,
-                                exerciseProgress = stepsProgress,
-                                standProgress = waterProgress,
-                                modifier = Modifier.padding(16.dp)
-                            )
-                        }
+            Spacer(modifier = Modifier.height(8.dp))
 
-                        GlassCard(
-                            modifier = Modifier.fillMaxWidth().height(100.dp),
-                            onClick = {
-                                tempLocationInput = weatherLocation
-                                showWeatherDialog = true
-                            }
+            // Main Content Area
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                androidx.compose.animation.AnimatedContent(
+                    targetState = isDashboardExpanded,
+                    transitionSpec = {
+                        (androidx.compose.animation.fadeIn(animationSpec = tween(400)) + androidx.compose.animation.scaleIn(initialScale = 0.8f, animationSpec = tween(400)))
+                            .togetherWith(
+                                androidx.compose.animation.fadeOut(animationSpec = tween(400)) + androidx.compose.animation.scaleOut(targetScale = 0.8f, animationSpec = tween(400)))
+                    },
+                    label = "dashboard_split"
+                ) { expanded ->
+                    if (!expanded) {
+                        // Hero Rings Card
+                        IosCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { isDashboardExpanded = true }
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                val iconColor = if (weatherCondition == "Sunny") Color(0xFFFFD700) else Color.LightGray
-                                val icon = if (weatherCondition == "Sunny") Icons.Default.WbSunny else Icons.Default.Cloud
-                                val temp = if (weatherCondition == "Sunny") "32°C" else "26°C"
-
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = icon,
-                                        contentDescription = weatherCondition,
-                                        tint = iconColor,
-                                        modifier = Modifier.size(48.dp)
+                                Text(
+                                    text = "Activity",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.align(Alignment.Start)
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Box(modifier = Modifier.size(220.dp)) {
+                                    ActivityRings(
+                                        moveProgress = sleepProgress,
+                                        exerciseProgress = stepsProgress,
+                                        standProgress = waterProgress
                                     )
-                                    Column {
+                                }
+                                Spacer(modifier = Modifier.height(24.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceEvenly
+                                ) {
+                                    RingLegend("Sleep", MoveColor, "$sleepHours", "hr")
+                                    RingLegend("Steps", ExerciseColor, "$steps", "")
+                                    RingLegend("Water", StandColor, "$waterGlasses", "gls")
+                                }
+                            }
+                        }
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            // Stats Grid - Row 1: Steps & Sleep side-by-side
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                // Steps Card
+                                IosCard(
+                                    modifier = Modifier.weight(1f).aspectRatio(1f),
+                                    onClick = {
+                                        goalInput = stepsGoal.toString()
+                                        showGoalDialog = true
+                                    }
+                                ) {
+                                    Column(
+                                        modifier = Modifier.fillMaxSize(),
+                                        verticalArrangement = Arrangement.SpaceBetween
+                                    ) {
                                         Text(
-                                            text = weatherCondition,
-                                            style = MaterialTheme.typography.titleLarge,
-                                            fontWeight = FontWeight.Bold
+                                            "Steps",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = ExerciseColor
                                         )
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(imageVector = Icons.Default.LocationOn, contentDescription = "Location", tint = Color.Gray, modifier = Modifier.size(14.dp))
-                                            Spacer(modifier = Modifier.width(4.dp))
+                                        Column {
                                             Text(
-                                                text = weatherLocation,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = Color.Gray,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
+                                                "$steps",
+                                                style = MaterialTheme.typography.headlineMedium,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text(
+                                                "Goal: $stepsGoal",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = Color.Gray
                                             )
                                         }
                                     }
                                 }
 
-                                Text(
-                                    text = temp,
-                                    style = MaterialTheme.typography.displayMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-                } else {
-                    // --- STATE 2: THE SPLIT GLASS CARDS ---
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            GlassCard(modifier = Modifier.weight(1f).aspectRatio(0.85f)) {
-                                StatArc(progress = sleepProgress, color = moveColor, title = "Sleep", current = "$sleepHours", goal = "hrs")
-                            }
-
-                            GlassCard(
-                                modifier = Modifier.weight(1f).aspectRatio(0.85f),
-                                onClick = {
-                                    goalInput = stepsGoal.toString()
-                                    showGoalDialog = true
+                                // Sleep Card
+                                IosCard(
+                                    modifier = Modifier.weight(1f).aspectRatio(1f)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.fillMaxSize(),
+                                        verticalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            "Sleep",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MoveColor
+                                        )
+                                        Column {
+                                            Text(
+                                                "${sleepHours}h",
+                                                style = MaterialTheme.typography.headlineMedium,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text(
+                                                "Goal: ${sleepGoal}h",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = Color.Gray
+                                            )
+                                        }
+                                    }
                                 }
-                            ) {
-                                StatArc(progress = stepsProgress, color = exerciseColor, title = "Steps", current = "$steps", goal = "/ $stepsGoal")
                             }
-                        }
 
-                        Box {
-                            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                            // Stats Grid - Row 2: Water Card (Wide, balanced layout)
+                            IosCard(
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    StatArc(progress = waterProgress, color = standColor, title = "Hydration", current = "$waterGlasses", goal = "/ $waterGoal gls", modifier = Modifier.weight(1f))
-
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                                        modifier = Modifier.padding(start = 16.dp)
-                                    ) {
-                                        IconButton(
-                                            onClick = { 
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                onAddWater() 
-                                            },
-                                            modifier = Modifier.size(56.dp).background(standColor.copy(alpha = 0.2f), CircleShape).border(1.dp, standColor.copy(alpha = 0.5f), CircleShape)
-                                        ) {
-                                            Icon(imageVector = Icons.Default.Add, contentDescription = "Add Water", tint = standColor)
-                                        }
-
-                                        if (waterGlasses > 0) {
-                                            IconButton(
-                                                onClick = { 
-                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                    onResetWater() 
-                                                }, 
-                                                modifier = Modifier.size(40.dp)
-                                            ) {
-                                                Icon(imageVector = Icons.Default.Refresh, contentDescription = "Reset", tint = Color.Gray)
+                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                "Hydration",
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = StandColor
+                                            )
+                                            if (waterGlasses > 0) {
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Icon(
+                                                    imageVector = Icons.Default.Refresh,
+                                                    contentDescription = "Reset",
+                                                    tint = Color.Gray.copy(alpha = 0.6f),
+                                                    modifier = Modifier
+                                                        .size(18.dp)
+                                                        .clickable {
+                                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                            onResetWater()
+                                                        }
+                                                )
                                             }
                                         }
+                                        Row(verticalAlignment = Alignment.Bottom) {
+                                            Text(
+                                                "$waterGlasses",
+                                                style = MaterialTheme.typography.headlineMedium,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text(
+                                                " / $waterGoal glasses",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = Color.Gray,
+                                                modifier = Modifier.padding(bottom = 3.dp, start = 4.dp)
+                                            )
+                                        }
+                                    }
+
+                                    IconButton(
+                                        onClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            onAddWater()
+                                        },
+                                        modifier = Modifier
+                                            .size(46.dp)
+                                            .background(StandColor.copy(alpha = 0.2f), CircleShape)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Add,
+                                            contentDescription = "Add Water",
+                                            tint = StandColor
+                                        )
                                     }
                                 }
                             }
                         }
                     }
                 }
+
+                // Weather Card (Always displayed, full width)
+                IosCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        tempLocationInput = weatherLocation
+                        showWeatherDialog = true
+                    }
+                ) {
+                    val iconColor = if (weatherCondition == "Sunny") Color(0xFFFFD700) else Color.LightGray
+                    val icon = if (weatherCondition == "Sunny") Icons.Default.WbSunny else Icons.Default.Cloud
+                    val temp = if (weatherCondition == "Sunny") "32°" else "26°"
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                "Weather",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                weatherLocation,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color.Gray,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Text(
+                                temp,
+                                style = MaterialTheme.typography.displaySmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = weatherCondition,
+                                tint = iconColor,
+                                modifier = Modifier.size(44.dp)
+                            )
+                        }
+                    }
+                }
             }
+
+            // Bottom clearance for the Floating Navigation Bar
+            Spacer(modifier = Modifier.height(140.dp))
         }
 
-        // --- EXISTING STEPS GOAL DIALOG ---
+        // Dialogs
         if (showGoalDialog) {
             AlertDialog(
                 onDismissRequest = { showGoalDialog = false },
-                title = { Text("Set Daily Step Goal") },
+                title = { Text("Daily Step Goal") },
                 text = {
                     OutlinedTextField(
                         value = goalInput,
@@ -433,12 +450,10 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
                 },
                 confirmButton = {
                     Button(onClick = {
-                        stepsGoal = goalInput.toIntOrNull() ?: 10000
-                        dataManager.saveStepGoal(stepsGoal)
+                        val newGoal = goalInput.toIntOrNull() ?: 10000
+                        onUpdateStepGoal(newGoal)
                         showGoalDialog = false
-                    }) {
-                        Text("Save Goal")
-                    }
+                    }) { Text("Save") }
                 },
                 dismissButton = {
                     TextButton(onClick = { showGoalDialog = false }) { Text("Cancel") }
@@ -446,11 +461,10 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
             )
         }
 
-        // --- WEATHER CONFIG DIALOG ---
         if (showWeatherDialog) {
             AlertDialog(
                 onDismissRequest = { showWeatherDialog = false },
-                title = { Text("Weather Settings") },
+                title = { Text("Weather") },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         OutlinedTextField(
@@ -460,13 +474,11 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
-
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                             Button(
                                 onClick = { weatherCondition = "Sunny" },
                                 colors = ButtonDefaults.buttonColors(containerColor = if (weatherCondition == "Sunny") MaterialTheme.colorScheme.primary else Color.Gray)
                             ) { Text("Sunny") }
-
                             Button(
                                 onClick = { weatherCondition = "Cloudy" },
                                 colors = ButtonDefaults.buttonColors(containerColor = if (weatherCondition == "Cloudy") MaterialTheme.colorScheme.primary else Color.Gray)
@@ -478,9 +490,7 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
                     Button(onClick = {
                         weatherLocation = tempLocationInput.ifBlank { "Unknown" }
                         showWeatherDialog = false
-                    }) {
-                        Text("Save")
-                    }
+                    }) { Text("Save") }
                 },
                 dismissButton = {
                     TextButton(onClick = { showWeatherDialog = false }) { Text("Cancel") }
@@ -488,11 +498,74 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
             )
         }
 
-        ParticleExplosion(isTriggered = showWaterExplosion, particleColor = standColor, onFinished = { showWaterExplosion = false })
+        ParticleExplosion(isTriggered = showWaterExplosion, particleColor = StandColor, onFinished = { showWaterExplosion = false })
     }
 }
 
-// --- PARTICLE EXPLOSION  ---
+@Composable
+fun RingLegend(title: String, color: Color, value: String, unit: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(title, style = MaterialTheme.typography.labelMedium, color = color)
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            if (unit.isNotEmpty()) {
+                Text(unit, style = MaterialTheme.typography.labelSmall, color = Color.Gray, modifier = Modifier.padding(bottom = 2.dp, start = 2.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun ActivityRings(
+    moveProgress: Float,
+    exerciseProgress: Float,
+    standProgress: Float,
+    modifier: Modifier = Modifier
+) {
+    val animMove by animateFloatAsState(targetValue = moveProgress, animationSpec = tween(1000), label = "moveAnim")
+    val animExercise by animateFloatAsState(targetValue = exerciseProgress, animationSpec = tween(1000, delayMillis = 200), label = "exAnim")
+    val animStand by animateFloatAsState(targetValue = standProgress, animationSpec = tween(1000, delayMillis = 400), label = "stAnim")
+
+    Canvas(modifier = modifier.fillMaxSize()) {
+        val strokeWidth = size.width * 0.12f
+        val spacing = 2.dp.toPx()
+        val center = Offset(size.width / 2, size.height / 2)
+
+        val r1 = (size.width - strokeWidth) / 2
+        val r2 = r1 - strokeWidth - spacing
+        val r3 = r2 - strokeWidth - spacing
+
+        fun drawRing(radius: Float, progress: Float, color: Color) {
+            // Background track
+            drawArc(
+                color = color.copy(alpha = 0.2f),
+                startAngle = -90f,
+                sweepAngle = 360f,
+                useCenter = false,
+                topLeft = Offset(center.x - radius, center.y - radius),
+                size = Size(radius * 2, radius * 2),
+                style = Stroke(width = strokeWidth)
+            )
+            // Progress
+            if (progress > 0) {
+                drawArc(
+                    color = color,
+                    startAngle = -90f,
+                    sweepAngle = (progress * 360f).coerceAtMost(360f),
+                    useCenter = false,
+                    topLeft = Offset(center.x - radius, center.y - radius),
+                    size = Size(radius * 2, radius * 2),
+                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                )
+            }
+        }
+
+        drawRing(r1, animMove, MoveColor)
+        drawRing(r2, animExercise, ExerciseColor)
+        drawRing(r3, animStand, StandColor)
+    }
+}
+
 @Composable
 fun ParticleExplosion(isTriggered: Boolean, particleColor: Color, onFinished: () -> Unit) {
     if (!isTriggered) return
@@ -514,56 +587,5 @@ fun ParticleExplosion(isTriggered: Boolean, particleColor: Color, onFinished: ()
             val alpha = (1f - progress.value).coerceIn(0f, 1f)
             drawCircle(color = particleColor.copy(alpha = alpha), radius = particle.radius, center = Offset(x, y))
         }
-    }
-}
-
-@Composable
-fun ActivityRings(
-    moveProgress: Float,
-    exerciseProgress: Float,
-    standProgress: Float,
-    modifier: Modifier = Modifier
-) {
-    val moveColor = Color(0xFFFA114F)     // Pink/Red
-    val exerciseColor = Color(0xFF92E01D) // Neon Green
-    val standColor = Color(0xFF1DDAE2)    // Cyan/Blue
-
-    val animMove by animateFloatAsState(targetValue = moveProgress, animationSpec = tween(1000), label = "moveAnim")
-    val animExercise by animateFloatAsState(targetValue = exerciseProgress, animationSpec = tween(1000, delayMillis = 200), label = "exAnim")
-    val animStand by animateFloatAsState(targetValue = standProgress, animationSpec = tween(1000, delayMillis = 400), label = "stAnim")
-
-    Canvas(modifier = modifier.fillMaxSize()) {
-        val strokeWidth = size.width * 0.14f
-        val spacing = strokeWidth * 0.25f
-        val center = Offset(size.width / 2, size.height / 2)
-
-        val r1 = (size.width - strokeWidth) / 2
-        val r2 = r1 - strokeWidth - spacing
-        val r3 = r2 - strokeWidth - spacing
-
-        fun drawRing(radius: Float, progress: Float, color: Color) {
-            drawArc(
-                color = color.copy(alpha = 0.15f),
-                startAngle = -90f,
-                sweepAngle = 360f,
-                useCenter = false,
-                topLeft = Offset(center.x - radius, center.y - radius),
-                size = Size(radius * 2, radius * 2),
-                style = Stroke(width = strokeWidth)
-            )
-            drawArc(
-                color = color,
-                startAngle = -90f,
-                sweepAngle = progress * 360f,
-                useCenter = false,
-                topLeft = Offset(center.x - radius, center.y - radius),
-                size = Size(radius * 2, radius * 2),
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-            )
-        }
-
-        drawRing(r1, animMove, moveColor)
-        drawRing(r2, animExercise, exerciseColor)
-        drawRing(r3, animStand, standColor)
     }
 }
