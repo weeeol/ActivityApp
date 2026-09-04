@@ -64,6 +64,7 @@ fun ActivityAppMainScreen(viewModel: ActivityViewModel) {
     var showSettings by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
+        AmbientBackground() // Apply ambient background to the whole app edge-to-edge
         if (!showSettings) {
             MainContent(
                 selectedItem = selectedItem,
@@ -81,7 +82,7 @@ fun ActivityAppMainScreen(viewModel: ActivityViewModel) {
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
-                    .padding(top = 5.dp, end = 16.dp),
+                    .padding(top = 8.dp, end = 12.dp),
                 enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.scaleIn(initialScale = 0.8f),
                 exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.scaleOut(targetScale = 0.8f)
             ) {
@@ -127,7 +128,6 @@ fun MainContent(
 ) {
     Box(
         modifier = modifier
-            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding(),
         contentAlignment = Alignment.TopStart
     ) {

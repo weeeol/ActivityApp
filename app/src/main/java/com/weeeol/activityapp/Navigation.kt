@@ -41,11 +41,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -66,6 +69,7 @@ fun FloatingNavigationBar(
 
     val indicatorOffset = remember { Animatable(0f) }
     val coroutineScope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
 
     LaunchedEffect(selectedIndex, barWidthPx) {
         if (!isDragging && barWidthPx > 0) {
@@ -85,12 +89,24 @@ fun FloatingNavigationBar(
             .height(72.dp)
             .fillMaxWidth()
             .clip(RoundedCornerShape(36.dp))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
-            .border(1.dp, glowColor, RoundedCornerShape(36.dp)) // Brightened edge by using solid color
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+            .border(
+                width = 1.dp,
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        glowColor.copy(alpha = 0.8f),
+                        glowColor.copy(alpha = 0.2f)
+                    )
+                ),
+                shape = RoundedCornerShape(36.dp)
+            )
             .onSizeChanged { size -> barWidthPx = size.width.toFloat() }
             .pointerInput(barWidthPx) {
                 detectHorizontalDragGestures(
-                    onDragStart = { isDragging = true },
+                    onDragStart = { 
+                        isDragging = true 
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    },
                     onHorizontalDrag = { _, dragAmount ->
                         if (barWidthPx > 0) {
                             coroutineScope.launch {
@@ -108,7 +124,10 @@ fun FloatingNavigationBar(
                             val centerPx = indicatorOffset.value + (tabWidthPx / 2)
                             val closestIndex = (centerPx / tabWidthPx).toInt().coerceIn(0, navItems.size - 1)
 
-                            currentOnItemSelected(navItems[closestIndex])
+                            if (closestIndex != selectedIndex) {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                currentOnItemSelected(navItems[closestIndex])
+                            }
 
                             coroutineScope.launch {
                                 indicatorOffset.animateTo(
@@ -157,7 +176,10 @@ fun FloatingNavigationBar(
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
-                            onClick = { onItemSelected(item) }
+                            onClick = { 
+                                if (item != selectedItem) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onItemSelected(item) 
+                            }
                         ),
                     contentAlignment = Alignment.Center
                 ) {

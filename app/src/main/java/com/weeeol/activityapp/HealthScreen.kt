@@ -5,6 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,6 +43,8 @@ import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 
 // --- 1. THE AMBIENT ANIMATED BACKGROUND ---
 @Composable
@@ -101,7 +104,12 @@ fun GlassCard(
         .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
         .border(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+            brush = Brush.linearGradient(
+                colors = listOf(
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+                )
+            ),
             shape = RoundedCornerShape(28.dp)
         )
 
@@ -166,6 +174,7 @@ fun StatArc(
 @Composable
 fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> Unit) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     val waterGoal = 8
     var showWaterExplosion by remember { mutableStateOf(false) }
     var isDashboardExpanded by remember { mutableStateOf(false) }
@@ -237,8 +246,6 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
     val standColor = Color(0xFF1DDAE2)
 
     Box(modifier = Modifier.fillMaxSize()) {
-        AmbientBackground()
-
         Column(
             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -271,9 +278,15 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(24.dp)
                     ) {
-                        GlassCard(
-                            modifier = Modifier.size(280.dp),
-                            onClick = { isDashboardExpanded = true }
+                        Box(
+                            modifier = Modifier
+                                .size(320.dp)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = { isDashboardExpanded = true }
+                                ),
+                            contentAlignment = Alignment.Center
                         ) {
                             ActivityRings(
                                 moveProgress = sleepProgress,
@@ -374,14 +387,23 @@ fun HealthScreen(waterGlasses: Int, onAddWater: () -> Unit, onResetWater: () -> 
                                         modifier = Modifier.padding(start = 16.dp)
                                     ) {
                                         IconButton(
-                                            onClick = onAddWater,
+                                            onClick = { 
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                onAddWater() 
+                                            },
                                             modifier = Modifier.size(56.dp).background(standColor.copy(alpha = 0.2f), CircleShape).border(1.dp, standColor.copy(alpha = 0.5f), CircleShape)
                                         ) {
                                             Icon(imageVector = Icons.Default.Add, contentDescription = "Add Water", tint = standColor)
                                         }
 
                                         if (waterGlasses > 0) {
-                                            IconButton(onClick = onResetWater, modifier = Modifier.size(40.dp)) {
+                                            IconButton(
+                                                onClick = { 
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    onResetWater() 
+                                                }, 
+                                                modifier = Modifier.size(40.dp)
+                                            ) {
                                                 Icon(imageVector = Icons.Default.Refresh, contentDescription = "Reset", tint = Color.Gray)
                                             }
                                         }

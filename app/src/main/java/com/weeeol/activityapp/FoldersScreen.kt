@@ -30,6 +30,11 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -47,6 +52,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FoldersScreen(
     folders: List<ProjectFolder>,
@@ -67,6 +73,9 @@ fun FoldersScreen(
     var openedFolder by remember { mutableStateOf<ProjectFolder?>(null) }
     var folderToDelete by remember { mutableStateOf<ProjectFolder?>(null) }
     var folderToEdit by remember { mutableStateOf<ProjectFolder?>(null) }
+    
+    var isRefreshing by remember { mutableStateOf(false) }
+    val refreshScope = rememberCoroutineScope()
     var nameError by remember { mutableStateOf<String?>(null) }
 
 
@@ -97,22 +106,34 @@ fun FoldersScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(bottom = 120.dp)
+                PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = {
+                        refreshScope.launch {
+                            isRefreshing = true
+                            delay(1000) // Simulate a refresh
+                            isRefreshing = false
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    items(folders, key = { it.id }) { folder ->
-                        val noteCount = notes.count { it.folderId == folder.id }
-                        FolderCard(
-                            folder = folder,
-                            noteCount = noteCount,
-                            onDelete = { folderToDelete = folder },
-                            onEdit = { folderToEdit = folder },
-                            onClick = { openedFolder = folder }
-                        )
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(bottom = 120.dp)
+                    ) {
+                        items(folders, key = { it.id }) { folder ->
+                            val noteCount = notes.count { it.folderId == folder.id }
+                            FolderCard(
+                                folder = folder,
+                                noteCount = noteCount,
+                                onDelete = { folderToDelete = folder },
+                                onEdit = { folderToEdit = folder },
+                                onClick = { openedFolder = folder }
+                            )
+                        }
                     }
                 }
             }
