@@ -1,5 +1,6 @@
 package com.weeeol.activityapp
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -85,6 +86,17 @@ fun SettingsScreen(
     var stepGoalInput by remember(stepGoal) { mutableStateOf(stepGoal.toString()) }
     var showWaterGoalDialog by remember { mutableStateOf(false) }
     var waterGoalInput by remember(waterGoal) { mutableStateOf(waterGoal.toString()) }
+
+    // Intercept system back button / gesture to dismiss dialogs or exit settings back to main screen
+    BackHandler {
+        if (showStepGoalDialog) {
+            showStepGoalDialog = false
+        } else if (showWaterGoalDialog) {
+            showWaterGoalDialog = false
+        } else {
+            onClose()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -306,7 +318,7 @@ fun SettingsScreen(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Version 1.0.0 (Apple UI Edition)",
+                                text = "Version 0.15.0",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color.Gray
                             )

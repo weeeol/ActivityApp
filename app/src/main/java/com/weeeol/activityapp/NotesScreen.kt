@@ -9,14 +9,18 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -36,17 +40,21 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
@@ -82,10 +90,29 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+data class NoteColorTheme(
+    val id: Int,
+    val name: String,
+    val accentColor: Color,
+    val lightBg: Color,
+    val darkBg: Color
+)
+
+val NoteColors = listOf(
+    NoteColorTheme(0, "Default", Color(0xFF8E8E93), Color.Transparent, Color.Transparent),
+    NoteColorTheme(1, "Coral", Color(0xFFFF453A), Color(0xFFFFECEB), Color(0xFF2C1517)),
+    NoteColorTheme(2, "Amber", Color(0xFFFF9F0A), Color(0xFFFFF4E5), Color(0xFF2C2013)),
+    NoteColorTheme(3, "Mint", Color(0xFF30D158), Color(0xFFE8F9ED), Color(0xFF132A1C)),
+    NoteColorTheme(4, "Azure", Color(0xFF0A84FF), Color(0xFFE8F2FF), Color(0xFF132235)),
+    NoteColorTheme(5, "Purple", Color(0xFFBF5AF2), Color(0xFFF7ECFD), Color(0xFF291836)),
+    NoteColorTheme(6, "Rose", Color(0xFFFF375F), Color(0xFFFFEBF0), Color(0xFF2E131E))
+)
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun NotesScreen(
     notes: List<Note>,
+    folders: List<ProjectFolder> = emptyList(),
     onAddNote: (Note) -> Unit,
     onUpdateNote: (Note) -> Unit,
     onDeleteNote: (Note) -> Unit,
@@ -95,10 +122,20 @@ fun NotesScreen(
     var editingNote by remember { mutableStateOf<Note?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var selectedNoteIds by remember { mutableStateOf(setOf<String>()) }
+    var selectedFolderId by remember { mutableStateOf<String?>(null) }
 
-    val filteredNotes = notes.filter { note ->
-        note.title.contains(searchQuery, ignoreCase = true) ||
-                note.content.contains(searchQuery, ignoreCase = true)
+    val filteredNotes = remember(notes, searchQuery, selectedFolderId) {
+        notes.filter { note ->
+            val matchesSearch = if (searchQuery.isBlank()) true else {
+                note.title.contains(searchQuery, ignoreCase = true) ||
+                        note.content.contains(searchQuery, ignoreCase = true)
+            }
+            val matchesFolder = when (selectedFolderId) {
+                null -> true
+                else -> note.folderId == selectedFolderId
+            }
+            matchesSearch && matchesFolder
+        }
     }
 
     // Automatically hide navbar and settings when editing OR selecting
@@ -114,6 +151,7 @@ fun NotesScreen(
     if (editingNote != null) {
         EditNoteFullscreen(
             note = editingNote!!,
+            folders = folders,
             onBack = { updatedNote ->
                 // Clean up blank note if backed out without typing anything
                 if (updatedNote.title.isBlank() && updatedNote.content.isBlank()) {
@@ -248,7 +286,51 @@ fun NotesScreen(
                         )
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    if (folders.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            item {
+                                val isSelected = selectedFolderId == null
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        selectedFolderId = null
+                                    },
+                                    label = { Text("All (${notes.size})") },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                )
+                            }
+
+                            items(folders, key = { it.id }) { folder ->
+                                val isSelected = selectedFolderId == folder.id
+                                val count = notes.count { it.folderId == folder.id }
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        selectedFolderId = if (isSelected) null else folder.id
+                                    },
+                                    label = { Text("${folder.emoji} ${folder.name} ($count)") },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
                 }
 
                 // Empty State or Notes Grid
@@ -290,8 +372,9 @@ fun NotesScreen(
                         }
                     }
                 } else {
-                    val pinnedNotes = filteredNotes.filter { it.isPinned }
-                    val unpinnedNotes = filteredNotes.filter { !it.isPinned }
+                    val (pinnedNotes, unpinnedNotes) = remember(filteredNotes) {
+                        filteredNotes.partition { it.isPinned }
+                    }
 
                     LazyVerticalStaggeredGrid(
                         columns = StaggeredGridCells.Fixed(2),
@@ -305,8 +388,10 @@ fun NotesScreen(
                         if (searchQuery.isNotBlank() || pinnedNotes.isEmpty()) {
                             // If searching or nothing pinned, render straight list
                             items(filteredNotes, key = { it.id }) { note ->
+                                val folder = folders.firstOrNull { it.id == note.folderId }
                                 NoteItem(
                                     note = note,
+                                    folder = folder,
                                     selectedNoteIds = selectedNoteIds,
                                     onSelect = { selectedNoteIds = it },
                                     onEdit = { editingNote = note },
@@ -320,8 +405,10 @@ fun NotesScreen(
                                     SectionHeader(title = "PINNED", count = pinnedNotes.size)
                                 }
                                 items(pinnedNotes, key = { it.id }) { note ->
+                                    val folder = folders.firstOrNull { it.id == note.folderId }
                                     NoteItem(
                                         note = note,
+                                        folder = folder,
                                         selectedNoteIds = selectedNoteIds,
                                         onSelect = { selectedNoteIds = it },
                                         onEdit = { editingNote = note },
@@ -337,8 +424,10 @@ fun NotesScreen(
                                     SectionHeader(title = "NOTES", count = unpinnedNotes.size)
                                 }
                                 items(unpinnedNotes, key = { it.id }) { note ->
+                                    val folder = folders.firstOrNull { it.id == note.folderId }
                                     NoteItem(
                                         note = note,
+                                        folder = folder,
                                         selectedNoteIds = selectedNoteIds,
                                         onSelect = { selectedNoteIds = it },
                                         onEdit = { editingNote = note },
@@ -355,7 +444,7 @@ fun NotesScreen(
             FloatingActionButton(
                 onClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    val newNote = Note(title = "", content = "")
+                    val newNote = Note(title = "", content = "", folderId = selectedFolderId)
                     onAddNote(newNote)
                     editingNote = newNote
                 },
@@ -404,6 +493,7 @@ fun SectionHeader(title: String, count: Int? = null) {
 @Composable
 private fun NoteItem(
     note: Note,
+    folder: ProjectFolder? = null,
     selectedNoteIds: Set<String>,
     onSelect: (Set<String>) -> Unit,
     onEdit: () -> Unit,
@@ -412,6 +502,7 @@ private fun NoteItem(
     val isSelected = selectedNoteIds.contains(note.id)
     NoteCard(
         note = note,
+        folder = folder,
         isSelected = isSelected,
         onClick = {
             if (selectedNoteIds.isNotEmpty()) {
@@ -434,6 +525,7 @@ private fun NoteItem(
 @Composable
 fun NoteCard(
     note: Note,
+    folder: ProjectFolder? = null,
     onDelete: () -> Unit = {}, // Preserved for backwards compatibility
     onClick: () -> Unit,
     onLongClick: () -> Unit = {},
@@ -441,8 +533,14 @@ fun NoteCard(
     onTogglePin: () -> Unit = {}
 ) {
     val haptic = LocalHapticFeedback.current
+    val colorTheme = NoteColors.getOrElse(note.colorIndex.coerceIn(0, NoteColors.size - 1)) { NoteColors[0] }
+    val isCustomColor = colorTheme.id != 0
+    val isDark = isSystemInDarkTheme()
+
     val baseContainerColor = if (note.isCodeMode) {
         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+    } else if (isCustomColor) {
+        if (isDark) colorTheme.darkBg else colorTheme.lightBg
     } else {
         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
     }
@@ -452,9 +550,23 @@ fun NoteCard(
         baseContainerColor
     }
 
-    val textColor = MaterialTheme.colorScheme.onSurface
-    val titleColor = if (note.isCodeMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+    val textColor = if (isCustomColor && !isDark) Color(0xFF1C1C1E) else MaterialTheme.colorScheme.onSurface
+    val titleColor = if (note.isCodeMode) {
+        MaterialTheme.colorScheme.primary
+    } else if (isCustomColor) {
+        if (isDark) colorTheme.accentColor else Color(0xFF1C1C1E)
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
     val fontFamily = if (note.isCodeMode) FontFamily.Monospace else FontFamily.Default
+
+    val cardBorder = if (isSelected) {
+        BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+    } else if (isCustomColor) {
+        BorderStroke(1.5.dp, colorTheme.accentColor.copy(alpha = if (isDark) 0.6f else 0.45f))
+    } else {
+        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+    }
 
     Card(
         modifier = Modifier
@@ -465,11 +577,7 @@ fun NoteCard(
                 onLongClick = onLongClick
             ),
         shape = RoundedCornerShape(18.dp),
-        border = if (isSelected) {
-            BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-        } else {
-            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-        },
+        border = cardBorder,
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Column(
@@ -477,25 +585,36 @@ fun NoteCard(
                 .padding(14.dp)
                 .fillMaxWidth()
         ) {
-            // Header Row: Title & Pin/Selection Status
+            // Header Row: Title, Color Dot & Pin/Selection Status
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
-                if (note.title.isNotBlank()) {
-                    Text(
-                        text = note.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = titleColor,
-                        fontFamily = fontFamily,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
-                } else {
-                    Spacer(modifier = Modifier.weight(1f))
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (isCustomColor) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(colorTheme.accentColor)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+                    if (note.title.isNotBlank()) {
+                        Text(
+                            text = note.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = titleColor,
+                            fontFamily = fontFamily,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
                 if (isSelected) {
@@ -520,6 +639,27 @@ fun NoteCard(
                             modifier = Modifier.size(17.dp)
                         )
                     }
+                }
+            }
+
+            // Folder Pill if assigned
+            if (folder != null) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${folder.emoji} ${folder.name}",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
 
@@ -567,29 +707,60 @@ fun NoteCard(
 }
 
 @Composable
-fun EditNoteFullscreen(note: Note, onBack: (Note) -> Unit) {
+fun EditNoteFullscreen(
+    note: Note,
+    folders: List<ProjectFolder> = emptyList(),
+    onBack: (Note) -> Unit
+) {
     val haptic = LocalHapticFeedback.current
     var tempTitle by remember { mutableStateOf(note.title) }
     var tempContent by remember { mutableStateOf(TextFieldValue(note.content)) }
     var tempIsCodeMode by remember { mutableStateOf(note.isCodeMode) }
     var tempIsPinned by remember { mutableStateOf(note.isPinned) }
+    var tempColorIndex by remember { mutableStateOf(note.colorIndex) }
+    var tempFolderId by remember { mutableStateOf(note.folderId) }
+    var showFolderMenu by remember { mutableStateOf(false) }
+
+    fun insertTextAtCursor(insertStr: String) {
+        val currentText = tempContent.text
+        val selection = tempContent.selection
+        val newText = currentText.replaceRange(selection.start, selection.end, insertStr)
+        val newPos = selection.start + insertStr.length
+        tempContent = TextFieldValue(
+            text = newText,
+            selection = androidx.compose.ui.text.TextRange(newPos)
+        )
+    }
 
     BackHandler {
         note.title = tempTitle
         note.content = tempContent.text
         note.isCodeMode = tempIsCodeMode
         note.isPinned = tempIsPinned
+        note.colorIndex = tempColorIndex
+        note.folderId = tempFolderId
         note.timestamp = java.text.SimpleDateFormat("MMM dd, yyyy • hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())
         onBack(note)
     }
 
+    val currentTheme = NoteColors.getOrElse(tempColorIndex.coerceIn(0, NoteColors.size - 1)) { NoteColors[0] }
+    val isDark = isSystemInDarkTheme()
+
     val backgroundColor = if (tempIsCodeMode) {
         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+    } else if (currentTheme.id != 0) {
+        if (isDark) currentTheme.darkBg else currentTheme.lightBg
     } else {
         MaterialTheme.colorScheme.background
     }
-    val textColor = MaterialTheme.colorScheme.onSurface
-    val titleColor = if (tempIsCodeMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+    val textColor = if (currentTheme.id != 0 && !isDark) Color(0xFF1C1C1E) else MaterialTheme.colorScheme.onSurface
+    val titleColor = if (tempIsCodeMode) {
+        MaterialTheme.colorScheme.primary
+    } else if (currentTheme.id != 0) {
+        if (isDark) currentTheme.accentColor else Color(0xFF1C1C1E)
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
     val fontFamily = if (tempIsCodeMode) FontFamily.Monospace else FontFamily.Default
     val scrollState = rememberScrollState()
 
@@ -685,6 +856,8 @@ fun EditNoteFullscreen(note: Note, onBack: (Note) -> Unit) {
                 note.content = tempContent.text
                 note.isCodeMode = tempIsCodeMode
                 note.isPinned = tempIsPinned
+                note.colorIndex = tempColorIndex
+                note.folderId = tempFolderId
                 note.timestamp = java.text.SimpleDateFormat("MMM dd, yyyy • hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())
                 onBack(note)
             }) {
@@ -699,6 +872,57 @@ fun EditNoteFullscreen(note: Note, onBack: (Note) -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // Folder Selector Dropdown
+                if (folders.isNotEmpty()) {
+                    val currentFolder = remember(tempFolderId, folders) {
+                        folders.firstOrNull { it.id == tempFolderId }
+                    }
+
+                    Box {
+                        FilterChip(
+                            selected = currentFolder != null,
+                            onClick = { showFolderMenu = true },
+                            label = {
+                                Text(
+                                    text = if (currentFolder != null) "${currentFolder.emoji} ${currentFolder.name}" else "Folder",
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Folder,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            },
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        DropdownMenu(
+                            expanded = showFolderMenu,
+                            onDismissRequest = { showFolderMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("No Folder (Unassigned)") },
+                                onClick = {
+                                    tempFolderId = null
+                                    showFolderMenu = false
+                                }
+                            )
+                            folders.forEach { f ->
+                                DropdownMenuItem(
+                                    text = { Text("${f.emoji} ${f.name}") },
+                                    onClick = {
+                                        tempFolderId = f.id
+                                        showFolderMenu = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
                 IconButton(onClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     tempIsPinned = !tempIsPinned
@@ -757,6 +981,95 @@ fun EditNoteFullscreen(note: Note, onBack: (Note) -> Unit) {
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
         )
+
+        // Modern Toolbar: Color Swatches & Quick Formatting Shortcuts
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Color Swatches Row
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                NoteColors.forEach { theme ->
+                    val isSelected = tempColorIndex == theme.id
+                    Box(
+                        modifier = Modifier
+                            .size(22.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (theme.id == 0) MaterialTheme.colorScheme.surfaceVariant
+                                else theme.accentColor
+                            )
+                            .border(
+                                width = if (isSelected) 2.5.dp else 1.dp,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                shape = CircleShape
+                            )
+                            .clickable {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                tempColorIndex = theme.id
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isSelected) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(if (theme.id == 0) MaterialTheme.colorScheme.primary else Color.White)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Quick Formatting Tools
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Checklist shortcut
+                IconButton(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        val textBefore = tempContent.text.substring(0, tempContent.selection.start)
+                        val needsNewline = textBefore.isNotEmpty() && !textBefore.endsWith("\n")
+                        insertTextAtCursor((if (needsNewline) "\n" else "") + "- [ ] ")
+                    },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Checklist,
+                        contentDescription = "Checklist",
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // Bullet shortcut
+                IconButton(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        val textBefore = tempContent.text.substring(0, tempContent.selection.start)
+                        val needsNewline = textBefore.isNotEmpty() && !textBefore.endsWith("\n")
+                        insertTextAtCursor((if (needsNewline) "\n" else "") + "• ")
+                    },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Text(
+                        text = "•",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
 
         // Content Area with scroll and line numbers (in Code mode)
         Row(

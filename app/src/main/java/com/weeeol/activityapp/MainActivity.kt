@@ -14,9 +14,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlin.math.roundToInt
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.weeeol.activityapp.ui.theme.ActivityAppTheme
+import androidx.activity.compose.BackHandler
 import androidx.activity.enableEdgeToEdge
 
 class MainActivity : ComponentActivity() {
@@ -31,7 +38,7 @@ class MainActivity : ComponentActivity() {
             )
 
             val systemTheme = isSystemInDarkTheme()
-            LaunchedEffect(Unit) {
+            LaunchedEffect(systemTheme) {
                 viewModel.initTheme(systemTheme)
             }
 
@@ -64,12 +71,21 @@ fun ActivityAppMainScreen(viewModel: ActivityViewModel) {
     val notes by viewModel.notes.collectAsStateWithLifecycle(initialValue = emptyList())
     val folders by viewModel.folders.collectAsStateWithLifecycle(initialValue = emptyList())
 
+    val navItems = remember { NavItem.entries }
+    val selectedIndex = navItems.indexOf(selectedItem)
+    val navPosition = remember { Animatable(selectedIndex.toFloat()) }
+
     var showSettings by remember { mutableStateOf(false) }
+
+    // Intercept system back button/gesture to exit settings back to main screen
+    BackHandler(enabled = showSettings) {
+        showSettings = false
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (!showSettings) {
             MainContent(
-                selectedItem = selectedItem,
+                navPosition = navPosition,
                 timers = timers,
                 notes = notes,
                 folders = folders,
@@ -108,7 +124,8 @@ fun ActivityAppMainScreen(viewModel: ActivityViewModel) {
             ) {
                 FloatingNavigationBar(
                     selectedItem = selectedItem,
-                    onItemSelected = { viewModel.selectNavItem(it) }
+                    onItemSelected = { viewModel.selectNavItem(it) },
+                    navPosition = navPosition
                 )
             }
         } else {
@@ -131,7 +148,7 @@ fun ActivityAppMainScreen(viewModel: ActivityViewModel) {
 
 @Composable
 fun MainContent(
-    selectedItem: NavItem,
+    navPosition: Animatable<Float, AnimationVector1D>,
     timers: List<TimerEvent>,
     notes: List<Note>,
     folders: List<ProjectFolder>,
@@ -142,47 +159,63 @@ fun MainContent(
     stepGoal: Int,
     modifier: Modifier = Modifier
 ) {
+    val navItems = remember { NavItem.entries }
+
     Box(
         modifier = modifier
             .statusBarsPadding(),
         contentAlignment = Alignment.TopStart
     ) {
-        when (selectedItem) {
-            NavItem.Health -> HealthScreen(
-                steps = steps,
-                stepsGoal = stepGoal,
-                waterGlasses = waterGlasses,
-                waterGoal = waterGoal,
-                onAddWater = { viewModel.addWater() },
-                onResetWater = { viewModel.resetWater() },
-                onUpdateSteps = { viewModel.updateSteps(it) },
-                onUpdateStepGoal = { viewModel.setStepGoal(it) }
-            )
-            NavItem.Notes -> NotesScreen(
-                notes = notes,
-                onAddNote = { viewModel.addNote(it) },
-                onUpdateNote = { viewModel.updateNote(it) },
-                onDeleteNote = { viewModel.deleteNote(it) },
-                onEditingStateChange = { viewModel.setEditingNote(it) }
-            )
-            NavItem.Folders -> FoldersScreen(
-                folders = folders,
-                notes = notes,
-                onAddFolder = { viewModel.addFolder(it) },
-                onUpdateFolder = { viewModel.updateFolder(it) },
-                onDeleteFolder = { viewModel.deleteFolder(it) },
-                onAddNote = { viewModel.addNote(it) },
-                onUpdateNote = { viewModel.updateNote(it) },
-                onDeleteNote = { viewModel.deleteNote(it) },
-                onEditingStateChange = { viewModel.setEditingNote(it) }
-            )
-            NavItem.Timer -> TimerScreen(
-                timers = timers,
-                onAddTimer = { viewModel.addTimer(it) },
-                onDeleteTimer = { viewModel.removeTimer(it) },
-                onToggleTimer = { viewModel.toggleTimer(it) },
-                onResetTimer = { viewModel.resetTimer(it) }
-            )
+        navItems.forEachIndexed { index, item ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val pageOffset = index - navPosition.value
+                        translationX = pageOffset * size.width
+                        alpha = if (kotlin.math.abs(pageOffset) >= 1.05f) 0f else 1f
+                        clip = true
+                    }
+            ) {
+                when (item) {
+                    NavItem.Health -> HealthScreen(
+                        steps = steps,
+                        stepsGoal = stepGoal,
+                        waterGlasses = waterGlasses,
+                        waterGoal = waterGoal,
+                        onAddWater = { viewModel.addWater() },
+                        onResetWater = { viewModel.resetWater() },
+                        onUpdateSteps = { viewModel.updateSteps(it) },
+                        onUpdateStepGoal = { viewModel.setStepGoal(it) }
+                    )
+                    NavItem.Notes -> NotesScreen(
+                        notes = notes,
+                        folders = folders,
+                        onAddNote = { viewModel.addNote(it) },
+                        onUpdateNote = { viewModel.updateNote(it) },
+                        onDeleteNote = { viewModel.deleteNote(it) },
+                        onEditingStateChange = { viewModel.setEditingNote(it) }
+                    )
+                    NavItem.Folders -> FoldersScreen(
+                        folders = folders,
+                        notes = notes,
+                        onAddFolder = { viewModel.addFolder(it) },
+                        onUpdateFolder = { viewModel.updateFolder(it) },
+                        onDeleteFolder = { viewModel.deleteFolder(it) },
+                        onAddNote = { viewModel.addNote(it) },
+                        onUpdateNote = { viewModel.updateNote(it) },
+                        onDeleteNote = { viewModel.deleteNote(it) },
+                        onEditingStateChange = { viewModel.setEditingNote(it) }
+                    )
+                    NavItem.Timer -> TimerScreen(
+                        timers = timers,
+                        onAddTimer = { viewModel.addTimer(it) },
+                        onDeleteTimer = { viewModel.removeTimer(it) },
+                        onToggleTimer = { viewModel.toggleTimer(it) },
+                        onResetTimer = { viewModel.resetTimer(it) }
+                    )
+                }
+            }
         }
     }
 }

@@ -2,14 +2,17 @@ package com.weeeol.activityapp
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -40,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -55,31 +60,63 @@ import kotlin.math.roundToInt
 fun FloatingNavigationBar(
     selectedItem: NavItem,
     onItemSelected: (NavItem) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    navPosition: Animatable<Float, AnimationVector1D>? = null
 ) {
-    val navItems = NavItem.entries
+    val navItems = remember { NavItem.entries }
     val selectedIndex = navItems.indexOf(selectedItem)
 
+    val position = navPosition ?: remember { Animatable(selectedIndex.toFloat()) }
+
     var barWidthPx by remember { mutableFloatStateOf(0f) }
-    var isDragging by remember { mutableStateOf(false) }
+    var isHoldingOrDragging by remember { mutableStateOf(false) }
 
     val currentSelectedIndex by rememberUpdatedState(selectedIndex)
     val currentOnItemSelected by rememberUpdatedState(onItemSelected)
 
-    val indicatorOffset = remember { Animatable(0f) }
     val coroutineScope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
+    var lastHapticIndex by remember { mutableIntStateOf(selectedIndex) }
 
-    LaunchedEffect(selectedIndex, barWidthPx) {
-        if (!isDragging && barWidthPx > 0) {
-            val targetOffset = (barWidthPx / navItems.size) * selectedIndex
-            indicatorOffset.animateTo(
-                targetValue = targetOffset,
-                animationSpec = spring(
-                    dampingRatio = 0.8f,
-                    stiffness = Spring.StiffnessMediumLow
+    val pillSpringSpec = spring<Float>(
+        dampingRatio = 0.8f,
+        stiffness = Spring.StiffnessMediumLow
+    )
+
+    // Dynamic expansion states when held or dragged (pure GPU transforms - no relayout)
+    val pillScaleX by animateFloatAsState(
+        targetValue = if (isHoldingOrDragging) 1.14f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = 0.8f,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "pillScaleX"
+    )
+
+    val pillScaleY by animateFloatAsState(
+        targetValue = if (isHoldingOrDragging) 1.10f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = 0.8f,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "pillScaleY"
+    )
+
+    val pillAlpha by animateFloatAsState(
+        targetValue = if (isHoldingOrDragging) 0.85f else 0.55f,
+        animationSpec = tween(180),
+        label = "pillAlpha"
+    )
+
+    LaunchedEffect(selectedIndex) {
+        if (!isHoldingOrDragging) {
+            val target = selectedIndex.toFloat()
+            if (kotlin.math.abs(position.value - target) > 0.001f) {
+                position.animateTo(
+                    targetValue = target,
+                    animationSpec = pillSpringSpec
                 )
-            )
+            }
         }
     }
 
@@ -98,71 +135,86 @@ fun FloatingNavigationBar(
                 shape = RoundedCornerShape(33.dp)
             )
             .onSizeChanged { size -> barWidthPx = size.width.toFloat() }
-            .pointerInput(barWidthPx, selectedIndex) {
-                detectHorizontalDragGestures(
-                    onDragStart = {
-                        isDragging = true
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    },
-                    onHorizontalDrag = { _, dragAmount ->
-                        if (barWidthPx > 0) {
-                            coroutineScope.launch {
-                                val tabWidthPx = barWidthPx / navItems.size
-                                val maxOffset = barWidthPx - tabWidthPx
-                                val newOffset = (indicatorOffset.value + dragAmount).coerceIn(0f, maxOffset)
-                                indicatorOffset.snapTo(newOffset)
-                            }
-                        }
-                    },
-                    onDragEnd = {
-                        isDragging = false
-                        if (barWidthPx > 0) {
-                            val tabWidthPx = barWidthPx / navItems.size
-                            val closestIndex = kotlin.math.round(indicatorOffset.value / tabWidthPx).toInt().coerceIn(0, navItems.size - 1)
+            .pointerInput(barWidthPx) {
+                if (barWidthPx <= 0f) return@pointerInput
+                val tabWidth = barWidthPx / navItems.size
+                val maxIndex = (navItems.size - 1).toFloat()
+                val touchSlop = viewConfiguration.touchSlop
 
-                            if (closestIndex != currentSelectedIndex) {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                currentOnItemSelected(navItems[closestIndex])
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    isHoldingOrDragging = true
+                    lastHapticIndex = position.value.roundToInt().coerceIn(0, navItems.size - 1)
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+
+                    var totalDragDistance = 0f
+                    var isDragStarted = false
+
+                    do {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+
+                        if (change.pressed) {
+                            val dragAmount = change.position.x - change.previousPosition.x
+                            totalDragDistance += kotlin.math.abs(dragAmount)
+
+                            if (!isDragStarted && totalDragDistance > touchSlop) {
+                                isDragStarted = true
                             }
 
-                            coroutineScope.launch {
-                                indicatorOffset.animateTo(
-                                    targetValue = tabWidthPx * closestIndex,
-                                    animationSpec = spring(
-                                        dampingRatio = 0.8f,
-                                        stiffness = Spring.StiffnessMediumLow
-                                    )
-                                )
+                            if (isDragStarted && dragAmount != 0f) {
+                                change.consume()
+                                val deltaFraction = dragAmount / tabWidth
+                                val newPosition = (position.value + deltaFraction).coerceIn(-0.12f, maxIndex + 0.12f)
+                                coroutineScope.launch {
+                                    position.snapTo(newPosition)
+                                }
+
+                                val currentHapticIndex = newPosition.roundToInt().coerceIn(0, navItems.size - 1)
+                                if (currentHapticIndex != lastHapticIndex) {
+                                    lastHapticIndex = currentHapticIndex
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
                             }
+                        } else {
+                            break
                         }
-                    },
-                    onDragCancel = {
-                        isDragging = false
-                        if (barWidthPx > 0) {
-                            coroutineScope.launch {
-                                indicatorOffset.animateTo(
-                                    targetValue = (barWidthPx / navItems.size) * currentSelectedIndex,
-                                    animationSpec = spring(
-                                        dampingRatio = 0.8f,
-                                        stiffness = Spring.StiffnessMediumLow
-                                    )
-                                )
-                            }
+                    } while (event.changes.any { it.pressed })
+
+                    isHoldingOrDragging = false
+
+                    if (isDragStarted) {
+                        val closestIndex = position.value.roundToInt().coerceIn(0, navItems.size - 1)
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        currentOnItemSelected(navItems[closestIndex])
+
+                        coroutineScope.launch {
+                            position.animateTo(
+                                targetValue = closestIndex.toFloat(),
+                                animationSpec = pillSpringSpec
+                            )
                         }
                     }
-                )
+                }
             }
     ) {
-        // Fluid Sliding Indicator Pill (Apple Style)
+        // Fluid Sliding Indicator Pill (Apple Style with interactive expansion)
         if (barWidthPx > 0) {
+            val tabWidth = barWidthPx / navItems.size
+            val pillOffsetPx = (position.value * tabWidth).roundToInt()
+
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
                     .fillMaxWidth(1f / navItems.size)
-                    .offset { IntOffset(indicatorOffset.value.roundToInt(), 0) }
+                    .offset { IntOffset(pillOffsetPx, 0) }
+                    .graphicsLayer {
+                        scaleX = pillScaleX
+                        scaleY = pillScaleY
+                    }
                     .padding(6.dp)
                     .clip(RoundedCornerShape(27.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f))
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = pillAlpha))
             )
         }
 
@@ -171,8 +223,9 @@ fun FloatingNavigationBar(
             modifier = Modifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            navItems.forEach { item ->
-                val isSelected = selectedItem == item
+            navItems.forEachIndexed { index, item ->
+                val activeIndex = position.value.roundToInt().coerceIn(0, navItems.size - 1)
+                val isSelected = activeIndex == index
 
                 val contentColor by animateColorAsState(
                     targetValue = if (isSelected) MaterialTheme.colorScheme.primary
@@ -199,7 +252,13 @@ fun FloatingNavigationBar(
                             onClick = {
                                 if (item != selectedItem) {
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    onItemSelected(item)
+                                    currentOnItemSelected(item)
+                                    coroutineScope.launch {
+                                        position.animateTo(
+                                            targetValue = index.toFloat(),
+                                            animationSpec = pillSpringSpec
+                                        )
+                                    }
                                 }
                             }
                         ),

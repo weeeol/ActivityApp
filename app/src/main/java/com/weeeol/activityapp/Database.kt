@@ -9,6 +9,8 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 // --- 1. THE FOLDER DAO ---
@@ -48,9 +50,15 @@ interface NoteDao {
     fun getNotesByFolder(folderId: String): Flow<List<Note>>
 }
 
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE notes ADD COLUMN colorIndex INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
 // --- 3. THE ACTUAL DATABASE ---
-// UPDATE: Incremented version to 3 due to the new isPinned column
-@Database(entities = [ProjectFolder::class, Note::class], version = 3, exportSchema = true)
+// UPDATE: Incremented version to 4 due to colorIndex column
+@Database(entities = [ProjectFolder::class, Note::class], version = 4, exportSchema = true)
 abstract class AppDatabase : RoomDatabase() {
 
     // Connect the DAOs
@@ -68,7 +76,8 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "activity_app_database"
                 )
-                    .fallbackToDestructiveMigration()
+                    .addMigrations(MIGRATION_3_4)
+                    .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
                 INSTANCE = instance
                 instance

@@ -22,7 +22,8 @@ class ActivityViewModel(
 ) : ViewModel() {
 
     // --- Theme State ---
-    private val _isDarkMode = MutableStateFlow(false)
+    // Preload theme synchronously from SharedPreferences/System to eliminate cold-start theme flash
+    private val _isDarkMode = MutableStateFlow(dataManager.getInitialTheme())
     val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
 
     // --- Navigation State ---
@@ -76,15 +77,20 @@ class ActivityViewModel(
         startBackgroundTimerEngine()
     }
 
-    // --- Background Timer Engine ---
+    private var timerCheckpointCounter = 0
+
+    // --- Background Timer Engine (Optimized Persistence) ---
     private fun startBackgroundTimerEngine() {
         if (timerTickerJob?.isActive == true) return
         timerTickerJob = viewModelScope.launch(Dispatchers.Default) {
             while (isActive) {
                 delay(1000L)
-                val now = LocalTime.now()
-                var stateChanged = false
                 val currentTimers = _timers.value
+                if (currentTimers.isEmpty()) continue
+
+                val now = LocalTime.now()
+                var needsImmediateDiskSave = false
+                var hasRunningTimers = false
 
                 currentTimers.forEach { timer ->
                     // Check scheduled start
@@ -92,21 +98,25 @@ class ActivityViewModel(
                         if (now.hour == timer.scheduledTime?.hour && now.minute == timer.scheduledTime?.minute) {
                             timer.isRunning = true
                             timer.scheduledTime = null
-                            stateChanged = true
+                            needsImmediateDiskSave = true
                         }
                     }
 
                     // Tick running timer
                     if (timer.isRunning && timer.remainingSeconds > 0) {
+                        hasRunningTimers = true
                         timer.remainingSeconds--
                         if (timer.remainingSeconds <= 0L) {
                             timer.isRunning = false
+                            needsImmediateDiskSave = true
                         }
-                        stateChanged = true
                     }
                 }
 
-                if (stateChanged) {
+                // Checkpoint persistence: Save immediately on state change (alarm triggered / timer finished),
+                // or every 30 seconds as safety checkpoint while timers run. Avoids writing to flash memory every 1 second.
+                if (needsImmediateDiskSave || (hasRunningTimers && ++timerCheckpointCounter >= 30)) {
+                    timerCheckpointCounter = 0
                     dataManager.saveTimers(currentTimers)
                 }
             }
@@ -115,7 +125,11 @@ class ActivityViewModel(
 
     // --- Theme Intents ---
     fun initTheme(systemTheme: Boolean) {
-        _isDarkMode.value = dataManager.loadTheme(systemTheme)
+        if (!dataManager.hasSavedTheme()) {
+            _isDarkMode.value = systemTheme
+        } else {
+            _isDarkMode.value = dataManager.loadTheme(systemTheme)
+        }
     }
 
     fun toggleTheme() {

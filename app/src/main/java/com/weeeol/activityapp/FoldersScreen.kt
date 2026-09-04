@@ -102,8 +102,15 @@ fun FoldersScreen(
     val refreshScope = rememberCoroutineScope()
     var nameError by remember { mutableStateOf<String?>(null) }
 
-    val filteredFolders = folders.filter { folder ->
-        folder.name.contains(searchQuery, ignoreCase = true)
+    val filteredFolders = remember(folders, searchQuery) {
+        if (searchQuery.isBlank()) folders
+        else folders.filter { folder ->
+            folder.name.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
+    val folderNoteCounts = remember(notes) {
+        notes.groupingBy { it.folderId }.eachCount()
     }
 
     if (openedFolder != null) {
@@ -256,7 +263,7 @@ fun FoldersScreen(
                             contentPadding = PaddingValues(bottom = 200.dp)
                         ) {
                             items(filteredFolders, key = { it.id }) { folder ->
-                                val noteCount = notes.count { it.folderId == folder.id }
+                                val noteCount = folderNoteCounts[folder.id] ?: 0
                                 FolderCard(
                                     folder = folder,
                                     noteCount = noteCount,
@@ -635,6 +642,7 @@ fun FolderDetailScreen(
                         items(folderNotes, key = { it.id }) { note ->
                             NoteCard(
                                 note = note,
+                                folder = folder,
                                 onDelete = { onDeleteNote(note) },
                                 onClick = {
                                     editingNote = note

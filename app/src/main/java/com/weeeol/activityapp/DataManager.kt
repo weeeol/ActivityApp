@@ -3,7 +3,9 @@ package com.weeeol.activityapp
 import android.content.Context
 import com.google.gson.Gson
 
-class DataManager(context: Context) {
+import android.content.res.Configuration
+
+class DataManager(private val context: Context) {
     private val sharedPreferences = context.getSharedPreferences("ActivityAppDatabase", Context.MODE_PRIVATE)
     private val gson = Gson()
 
@@ -52,6 +54,18 @@ class DataManager(context: Context) {
 
     fun loadTheme(isSystemDark: Boolean): Boolean {
         return sharedPreferences.getBoolean("is_dark_theme", isSystemDark)
+    }
+
+    fun hasSavedTheme(): Boolean {
+        return sharedPreferences.contains("is_dark_theme")
+    }
+
+    fun isSystemInDarkMode(): Boolean {
+        return (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+    }
+
+    fun getInitialTheme(): Boolean {
+        return loadTheme(isSystemInDarkMode())
     }
     // --- WATER SAVE/LOAD ---
     fun saveWaterIntake(glasses: Int) {

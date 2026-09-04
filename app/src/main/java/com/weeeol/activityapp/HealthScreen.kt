@@ -12,6 +12,12 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -20,6 +26,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.WbSunny
@@ -33,6 +40,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -89,7 +97,6 @@ fun HealthScreen(
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
-    var showWaterExplosion by remember { mutableStateOf(false) }
     var isDashboardExpanded by remember { mutableStateOf(false) }
 
     val dataManager = remember { DataManager(context) }
@@ -102,6 +109,47 @@ fun HealthScreen(
     var showWeatherDialog by remember { mutableStateOf(false) }
     var tempLocationInput by remember { mutableStateOf("") }
 
+    // Celebration system for milestones
+    var showCelebration by remember { mutableStateOf(false) }
+    var celebrationTitle by remember { mutableStateOf("") }
+    var celebrationSubtitle by remember { mutableStateOf("") }
+    var celebrationColor by remember { mutableStateOf(StandColor) }
+
+    var celebratedWaterToday by remember { mutableStateOf(waterGlasses >= waterGoal && waterGoal > 0) }
+    var celebratedStepsToday by remember { mutableStateOf(steps >= stepsGoal && stepsGoal > 0) }
+
+    LaunchedEffect(waterGlasses, waterGoal) {
+        if (waterGlasses >= waterGoal && waterGoal > 0 && !celebratedWaterToday) {
+            celebratedWaterToday = true
+            celebrationTitle = "Hydration Goal Crushed! 🌊"
+            celebrationSubtitle = "$waterGlasses of $waterGoal glasses logged today"
+            celebrationColor = StandColor
+            showCelebration = true
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        } else if (waterGlasses < waterGoal) {
+            celebratedWaterToday = false
+        }
+    }
+
+    LaunchedEffect(steps, stepsGoal) {
+        if (steps >= stepsGoal && stepsGoal > 0 && !celebratedStepsToday) {
+            celebratedStepsToday = true
+            celebrationTitle = "Step Goal Smashed! 🏃"
+            celebrationSubtitle = "$steps of $stepsGoal steps completed today"
+            celebrationColor = ExerciseColor
+            showCelebration = true
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        } else if (steps < stepsGoal) {
+            celebratedStepsToday = false
+        }
+    }
+
+    LaunchedEffect(showCelebration) {
+        if (showCelebration) {
+            kotlinx.coroutines.delay(4500L)
+            showCelebration = false
+        }
+    }
     // Sensor logic
     DisposableEffect(Unit) {
         val sensorManager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -135,13 +183,9 @@ fun HealthScreen(
         }
 
         if (stepSensor != null) {
-            sensorManager.registerListener(listener, stepSensor, SensorManager.SENSOR_DELAY_UI)
+            sensorManager.registerListener(listener, stepSensor, SensorManager.SENSOR_DELAY_NORMAL)
         }
         onDispose { sensorManager.unregisterListener(listener) }
-    }
-
-    LaunchedEffect(waterGlasses) {
-        if (waterGlasses == waterGoal) showWaterExplosion = true
     }
 
     val sleepHours = 6.5f
@@ -498,7 +542,75 @@ fun HealthScreen(
             )
         }
 
-        ParticleExplosion(isTriggered = showWaterExplosion, particleColor = StandColor, onFinished = { showWaterExplosion = false })
+        // Confetti Celebration Particle Cannon
+        ConfettiCelebration(
+            isTriggered = showCelebration,
+            primaryColor = celebrationColor,
+            onFinished = { }
+        )
+
+        // Celebration Banner
+        AnimatedVisibility(
+            visible = showCelebration,
+            enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(top = 10.dp, start = 16.dp, end = 16.dp)
+        ) {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                border = BorderStroke(1.5.dp, celebrationColor.copy(alpha = 0.55f)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showCelebration = false }
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(celebrationColor.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "🎉", fontSize = 20.sp)
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = celebrationTitle,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = celebrationColor
+                        )
+                        Text(
+                            text = celebrationSubtitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                    }
+                    IconButton(
+                        onClick = { showCelebration = false },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Dismiss",
+                            tint = Color.Gray,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -566,26 +678,96 @@ fun ActivityRings(
     }
 }
 
+data class ConfettiPiece(
+    val startX: Float,
+    val startY: Float,
+    val velocityX: Float,
+    val velocityY: Float,
+    val rotationSpeed: Float,
+    val initialRotation: Float,
+    val color: Color,
+    val width: Float,
+    val height: Float,
+    val isRibbon: Boolean
+)
+
 @Composable
-fun ParticleExplosion(isTriggered: Boolean, particleColor: Color, onFinished: () -> Unit) {
+fun ConfettiCelebration(
+    isTriggered: Boolean,
+    primaryColor: Color,
+    onFinished: () -> Unit
+) {
     if (!isTriggered) return
-    val particles = remember { List(60) { Particle(Random.nextFloat() * 2f * PI.toFloat(), Random.nextFloat() * 300f + 100f, Random.nextFloat() * 6f + 2f) } }
+
+    val confettiColors = remember(primaryColor) {
+        listOf(
+            primaryColor,
+            Color(0xFFFFD700), // Gold
+            Color(0xFFFA114F), // Move pink
+            Color(0xFF92E01D), // Exercise lime
+            Color(0xFF1DDAE2), // Stand cyan
+            Color(0xFFBF5AF2), // Purple
+            Color(0xFFFF9F0A)  // Orange
+        )
+    }
+
+    val particles = remember {
+        List(110) {
+            val angle = Random.nextFloat() * PI.toFloat() * 2f
+            val speed = Random.nextFloat() * 650f + 250f
+            ConfettiPiece(
+                startX = 0.5f + (Random.nextFloat() - 0.5f) * 0.4f,
+                startY = 0.35f + (Random.nextFloat() - 0.5f) * 0.2f,
+                velocityX = cos(angle) * speed,
+                velocityY = sin(angle) * speed - 180f,
+                rotationSpeed = (Random.nextFloat() - 0.5f) * 720f,
+                initialRotation = Random.nextFloat() * 360f,
+                color = confettiColors[Random.nextInt(confettiColors.size)],
+                width = Random.nextFloat() * 12f + 8f,
+                height = Random.nextFloat() * 8f + 5f,
+                isRibbon = Random.nextBoolean()
+            )
+        }
+    }
+
     val progress = remember { Animatable(0f) }
 
-    LaunchedEffect(true) {
+    LaunchedEffect(isTriggered) {
         progress.snapTo(0f)
-        progress.animateTo(targetValue = 1f, animationSpec = tween(durationMillis = 800, easing = LinearOutSlowInEasing))
+        progress.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 2400, easing = LinearEasing)
+        )
         onFinished()
     }
 
     Canvas(modifier = Modifier.fillMaxSize()) {
-        val center = Offset(size.width / 2, size.height / 2)
-        particles.forEach { particle ->
-            val distance = particle.speed * progress.value
-            val x = center.x + distance * cos(particle.angle)
-            val y = center.y + distance * sin(particle.angle)
-            val alpha = (1f - progress.value).coerceIn(0f, 1f)
-            drawCircle(color = particleColor.copy(alpha = alpha), radius = particle.radius, center = Offset(x, y))
+        val w = size.width
+        val h = size.height
+        val t = progress.value
+        val gravity = 950f * t * t
+        val alpha = if (t > 0.65f) (1f - (t - 0.65f) / 0.35f).coerceIn(0f, 1f) else 1f
+
+        particles.forEach { p ->
+            val curX = (p.startX * w) + p.velocityX * t * 0.7f + sin(t * 10f + p.initialRotation) * 28f
+            val curY = (p.startY * h) + p.velocityY * t * 0.7f + gravity
+            val curRotation = p.initialRotation + p.rotationSpeed * t
+
+            rotate(curRotation, pivot = Offset(curX, curY)) {
+                if (p.isRibbon) {
+                    drawRect(
+                        color = p.color.copy(alpha = alpha),
+                        topLeft = Offset(curX - p.width / 2, curY - p.height / 2),
+                        size = Size(p.width, p.height)
+                    )
+                } else {
+                    drawCircle(
+                        color = p.color.copy(alpha = alpha),
+                        radius = p.width / 2.5f,
+                        center = Offset(curX, curY)
+                    )
+                }
+            }
         }
     }
 }

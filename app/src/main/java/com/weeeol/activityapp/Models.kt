@@ -36,6 +36,7 @@ data class Note(
     var timestamp: String = java.text.SimpleDateFormat("MMM dd, yyyy • hh:mm a", java.util.Locale.getDefault()).format(java.util.Date()),
     var isCodeMode: Boolean = false,
     var isPinned: Boolean = false, // <-- Added pinned state
+    var colorIndex: Int = 0, // <-- 0 = default neutral, 1..6 = color tags
 
     @PrimaryKey
     val id: String = java.util.UUID.randomUUID().toString(),
