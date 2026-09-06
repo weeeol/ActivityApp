@@ -2,12 +2,21 @@ package com.weeeol.activityapp
 
 import android.app.TimePickerDialog
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -403,16 +412,51 @@ fun TimerCard(
 
     val animatedProgress by animateFloatAsState(
         targetValue = progress,
-        animationSpec = tween(durationMillis = 300),
+        animationSpec = spring(
+            dampingRatio = 0.8f,
+            stiffness = Spring.StiffnessMediumLow
+        ),
         label = "timerProgress"
+    )
+
+    // Breathing pulse when timer is running
+    val infiniteTransition = rememberInfiniteTransition(label = "runningPulse")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 0.85f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseAlpha"
     )
 
     val activeColor = if (isFinished) MaterialTheme.colorScheme.error else TimerAccentColor
 
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val cardScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.975f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = 0.75f,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "timerCardScale"
+    )
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = cardScale
+                scaleY = cardScale
+            },
         shape = RoundedCornerShape(22.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+        border = BorderStroke(
+            1.dp,
+            if (timer.isRunning) activeColor.copy(alpha = pulseAlpha)
+            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+        ),
         colors = CardDefaults.cardColors(
             containerColor = if (isFinished) {
                 MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)
@@ -590,6 +634,17 @@ fun TimerCard(
                     }
 
                     // Primary Play/Pause Button
+                    val playBtnBg by animateColorAsState(
+                        targetValue = if (timer.isRunning) TimerAccentColor.copy(alpha = 0.2f) else TimerAccentColor,
+                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                        label = "playBtnBg"
+                    )
+                    val playBtnIconTint by animateColorAsState(
+                        targetValue = if (timer.isRunning) TimerAccentColor else Color.White,
+                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                        label = "playBtnTint"
+                    )
+
                     IconButton(
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -598,15 +653,12 @@ fun TimerCard(
                         modifier = Modifier
                             .size(50.dp)
                             .clip(CircleShape)
-                            .background(
-                                if (timer.isRunning) TimerAccentColor.copy(alpha = 0.2f)
-                                else TimerAccentColor
-                            )
+                            .background(playBtnBg)
                     ) {
                         Icon(
                             imageVector = if (timer.isRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = if (timer.isRunning) "Pause" else "Start",
-                            tint = if (timer.isRunning) TimerAccentColor else Color.White,
+                            tint = playBtnIconTint,
                             modifier = Modifier.size(26.dp)
                         )
                     }

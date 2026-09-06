@@ -15,11 +15,23 @@ import java.time.LocalTime
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-enum class NavItem(val title: String, val icon: ImageVector) {
-    Health("Health", Icons.Default.FavoriteBorder),
-    Notes("Notes", Icons.Default.Edit),
-    Folders("Folders", Icons.Default.Folder),
-    Timer("Timer", Icons.Default.PlayArrow)
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.PlayCircleOutline
+
+enum class NavItem(
+    val title: String,
+    val selectedIcon: ImageVector,
+    val unselectedIcon: ImageVector
+) {
+    Health("Health", Icons.Filled.Favorite, Icons.Outlined.FavoriteBorder),
+    Notes("Notes", Icons.Default.Edit, Icons.Outlined.Edit),
+    Folders("Folders", Icons.Default.Folder, Icons.Outlined.Folder),
+    Timer("Timer", Icons.Default.PlayArrow, Icons.Outlined.PlayCircleOutline);
+
+    val icon: ImageVector get() = selectedIcon
 }
 
 data class Particle(

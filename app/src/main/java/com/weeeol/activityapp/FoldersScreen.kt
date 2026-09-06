@@ -1,7 +1,21 @@
 package com.weeeol.activityapp
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -113,27 +127,56 @@ fun FoldersScreen(
         notes.groupingBy { it.folderId }.eachCount()
     }
 
-    if (openedFolder != null) {
-        BackHandler {
-            openedFolder = null
-        }
+    BackHandler(enabled = openedFolder != null) {
+        openedFolder = null
+    }
 
-        FolderDetailScreen(
-            folder = openedFolder!!,
-            notes = notes,
-            onBack = { openedFolder = null },
-            onAddNote = onAddNote,
-            onUpdateNote = onUpdateNote,
-            onDeleteNote = onDeleteNote,
-            onEditingStateChange = onEditingStateChange
-        )
-    } else {
-        Box(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = 8.dp)
-            ) {
+    AnimatedContent(
+        targetState = openedFolder,
+        transitionSpec = {
+            if (targetState != null) {
+                (slideInHorizontally(
+                    initialOffsetX = { it / 3 },
+                    animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
+                ) + fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)))
+                    .togetherWith(
+                        scaleOut(
+                            targetScale = 0.94f,
+                            animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)
+                        ) + fadeOut()
+                    )
+            } else {
+                (scaleIn(
+                    initialScale = 0.94f,
+                    animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)
+                ) + fadeIn())
+                    .togetherWith(
+                        slideOutHorizontally(
+                            targetOffsetX = { it / 3 },
+                            animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)
+                        ) + fadeOut()
+                    )
+            }
+        },
+        label = "folderScreenTransition"
+    ) { currentFolder ->
+        if (currentFolder != null) {
+            FolderDetailScreen(
+                folder = currentFolder,
+                notes = notes,
+                onBack = { openedFolder = null },
+                onAddNote = onAddNote,
+                onUpdateNote = onUpdateNote,
+                onDeleteNote = onDeleteNote,
+                onEditingStateChange = onEditingStateChange
+            )
+        } else {
+            Box(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 8.dp)
+                ) {
                 // Header
                 Row(
                     modifier = Modifier
@@ -530,6 +573,7 @@ fun FoldersScreen(
         }
     }
 }
+}
 
 @Composable
 fun FolderDetailScreen(
@@ -693,12 +737,30 @@ fun FolderCard(
 ) {
     val haptic = LocalHapticFeedback.current
     var showMenu by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val cardScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.965f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = 0.75f,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "folderCardScale"
+    )
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = cardScale
+                scaleY = cardScale
+            }
             .clip(RoundedCornerShape(20.dp))
-            .clickable { onClick() },
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            ),
         shape = RoundedCornerShape(20.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
         colors = CardDefaults.cardColors(

@@ -18,6 +18,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -65,7 +68,22 @@ fun IosCard(
     onClick: (() -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val cardScale by animateFloatAsState(
+        targetValue = if (isPressed && onClick != null) 0.975f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = 0.75f,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "iosCardScale"
+    )
+
     var boxModifier = modifier
+        .graphicsLayer {
+            scaleX = cardScale
+            scaleY = cardScale
+        }
         .clip(RoundedCornerShape(20.dp))
         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
         .border(
@@ -73,9 +91,12 @@ fun IosCard(
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
             shape = RoundedCornerShape(20.dp)
         )
-        
+
     if (onClick != null) {
-        boxModifier = boxModifier.clickable { onClick() }
+        boxModifier = boxModifier.clickable(
+            interactionSource = interactionSource,
+            indication = null
+        ) { onClick() }
     }
 
     Box(
@@ -634,9 +655,30 @@ fun ActivityRings(
     standProgress: Float,
     modifier: Modifier = Modifier
 ) {
-    val animMove by animateFloatAsState(targetValue = moveProgress, animationSpec = tween(1000), label = "moveAnim")
-    val animExercise by animateFloatAsState(targetValue = exerciseProgress, animationSpec = tween(1000, delayMillis = 200), label = "exAnim")
-    val animStand by animateFloatAsState(targetValue = standProgress, animationSpec = tween(1000, delayMillis = 400), label = "stAnim")
+    val animMove by animateFloatAsState(
+        targetValue = moveProgress,
+        animationSpec = spring(
+            dampingRatio = 0.75f,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "moveAnim"
+    )
+    val animExercise by animateFloatAsState(
+        targetValue = exerciseProgress,
+        animationSpec = spring(
+            dampingRatio = 0.75f,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "exAnim"
+    )
+    val animStand by animateFloatAsState(
+        targetValue = standProgress,
+        animationSpec = spring(
+            dampingRatio = 0.75f,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "stAnim"
+    )
 
     Canvas(modifier = modifier.fillMaxSize()) {
         val strokeWidth = size.width * 0.12f

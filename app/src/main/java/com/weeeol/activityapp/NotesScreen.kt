@@ -1,13 +1,23 @@
 package com.weeeol.activityapp
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -148,27 +158,56 @@ fun NotesScreen(
         selectedNoteIds = emptySet()
     }
 
-    if (editingNote != null) {
-        EditNoteFullscreen(
-            note = editingNote!!,
-            folders = folders,
-            onBack = { updatedNote ->
-                // Clean up blank note if backed out without typing anything
-                if (updatedNote.title.isBlank() && updatedNote.content.isBlank()) {
-                    onDeleteNote(updatedNote)
-                } else {
-                    onUpdateNote(updatedNote)
-                }
-                editingNote = null
+    AnimatedContent(
+        targetState = editingNote,
+        transitionSpec = {
+            if (targetState != null) {
+                (slideInVertically(
+                    initialOffsetY = { it / 5 },
+                    animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
+                ) + fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)))
+                    .togetherWith(
+                        scaleOut(
+                            targetScale = 0.94f,
+                            animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)
+                        ) + fadeOut()
+                    )
+            } else {
+                (scaleIn(
+                    initialScale = 0.94f,
+                    animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)
+                ) + fadeIn())
+                    .togetherWith(
+                        slideOutVertically(
+                            targetOffsetY = { it / 5 },
+                            animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)
+                        ) + fadeOut()
+                    )
             }
-        )
-    } else {
-        Box(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = 8.dp)
-            ) {
+        },
+        label = "notesScreenTransition"
+    ) { activeNote ->
+        if (activeNote != null) {
+            EditNoteFullscreen(
+                note = activeNote,
+                folders = folders,
+                onBack = { updatedNote ->
+                    // Clean up blank note if backed out without typing anything
+                    if (updatedNote.title.isBlank() && updatedNote.content.isBlank()) {
+                        onDeleteNote(updatedNote)
+                    } else {
+                        onUpdateNote(updatedNote)
+                    }
+                    editingNote = null
+                }
+            )
+        } else {
+            Box(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 8.dp)
+                ) {
                 // Top Header or Contextual Selection Bar
                 if (selectedNoteIds.isNotEmpty()) {
                     Row(
@@ -463,6 +502,7 @@ fun NotesScreen(
         }
     }
 }
+}
 
 @Composable
 fun SectionHeader(title: String, count: Int? = null) {
@@ -568,11 +608,28 @@ fun NoteCard(
         BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
     }
 
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val cardScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.965f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = 0.75f,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "noteCardScale"
+    )
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = cardScale
+                scaleY = cardScale
+            }
             .clip(RoundedCornerShape(18.dp))
             .combinedClickable(
+                interactionSource = interactionSource,
+                indication = null,
                 onClick = onClick,
                 onLongClick = onLongClick
             ),

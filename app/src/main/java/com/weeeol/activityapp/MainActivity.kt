@@ -83,52 +83,70 @@ fun ActivityAppMainScreen(viewModel: ActivityViewModel) {
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        if (!showSettings) {
-            MainContent(
-                navPosition = navPosition,
-                timers = timers,
-                notes = notes,
-                folders = folders,
-                viewModel = viewModel,
-                waterGlasses = waterGlasses,
-                waterGoal = waterGoal,
-                steps = steps,
-                stepGoal = stepGoal,
-                modifier = Modifier.fillMaxSize()
+        MainContent(
+            navPosition = navPosition,
+            timers = timers,
+            notes = notes,
+            folders = folders,
+            viewModel = viewModel,
+            waterGlasses = waterGlasses,
+            waterGoal = waterGoal,
+            steps = steps,
+            stepGoal = stepGoal,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Hide the Settings button when editing a note or in settings
+        androidx.compose.animation.AnimatedVisibility(
+            visible = !isEditingNote && !showSettings,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .statusBarsPadding()
+                .padding(top = 8.dp, end = 12.dp),
+            enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.scaleIn(initialScale = 0.8f),
+            exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.scaleOut(targetScale = 0.8f)
+        ) {
+            IconButton(onClick = { showSettings = true }) {
+                Icon(imageVector = Icons.Default.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onBackground)
+            }
+        }
+
+        // Hide the Navigation bar when editing a note or in settings
+        androidx.compose.animation.AnimatedVisibility(
+            visible = !isEditingNote && !showSettings,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 32.dp),
+            enter = androidx.compose.animation.slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)
+            ) + androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.slideOutVertically(
+                targetOffsetY = { it },
+                animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)
+            ) + androidx.compose.animation.fadeOut()
+        ) {
+            FloatingNavigationBar(
+                selectedItem = selectedItem,
+                onItemSelected = { viewModel.selectNavItem(it) },
+                navPosition = navPosition
             )
+        }
 
-            // Hide the Settings button when editing a note
-            androidx.compose.animation.AnimatedVisibility(
-                visible = !isEditingNote,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .statusBarsPadding()
-                    .padding(top = 8.dp, end = 12.dp),
-                enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.scaleIn(initialScale = 0.8f),
-                exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.scaleOut(targetScale = 0.8f)
-            ) {
-                IconButton(onClick = { showSettings = true }) {
-                    Icon(imageVector = Icons.Default.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onBackground)
-                }
-            }
-
-            // Hide the Navigation bar when editing a note
-            androidx.compose.animation.AnimatedVisibility(
-                visible = !isEditingNote,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(bottom = 32.dp),
-                enter = androidx.compose.animation.slideInVertically(initialOffsetY = { it }) + androidx.compose.animation.fadeIn(),
-                exit = androidx.compose.animation.slideOutVertically(targetOffsetY = { it }) + androidx.compose.animation.fadeOut()
-            ) {
-                FloatingNavigationBar(
-                    selectedItem = selectedItem,
-                    onItemSelected = { viewModel.selectNavItem(it) },
-                    navPosition = navPosition
-                )
-            }
-        } else {
+        // Settings Screen with fluid slide-up spring transition
+        androidx.compose.animation.AnimatedVisibility(
+            visible = showSettings,
+            enter = androidx.compose.animation.slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
+            ) + androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.slideOutVertically(
+                targetOffsetY = { it },
+                animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)
+            ) + androidx.compose.animation.fadeOut(),
+            modifier = Modifier.fillMaxSize()
+        ) {
             SettingsScreen(
                 isDarkMode = isDarkMode,
                 onThemeToggle = { viewModel.toggleTheme() },

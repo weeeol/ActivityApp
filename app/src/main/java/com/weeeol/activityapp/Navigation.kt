@@ -270,7 +270,7 @@ fun FloatingNavigationBar(
                         modifier = Modifier.scale(scale)
                     ) {
                         Icon(
-                            imageVector = item.icon,
+                            imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
                             contentDescription = item.title,
                             tint = contentColor,
                             modifier = Modifier.size(22.dp)
