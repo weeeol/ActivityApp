@@ -204,7 +204,9 @@ fun MainContent(
                         onAddWater = { viewModel.addWater() },
                         onResetWater = { viewModel.resetWater() },
                         onUpdateSteps = { viewModel.updateSteps(it) },
-                        onUpdateStepGoal = { viewModel.setStepGoal(it) }
+                        onUpdateStepGoal = { viewModel.setStepGoal(it) },
+                        onGetLastSensorValue = { viewModel.getLastSensorValue() },
+                        onSaveSensorValue = { viewModel.updateSensorValue(it) }
                     )
                     NavItem.Notes -> NotesScreen(
                         notes = notes,

@@ -17,8 +17,8 @@ import java.time.LocalTime
 
 class ActivityViewModel(
     private val dataManager: DataManager,
-    private val noteDao: NoteDao,
-    private val folderDao: FolderDao
+    private val noteRepository: NoteRepository,
+    private val folderRepository: FolderRepository
 ) : ViewModel() {
 
     // --- Theme State ---
@@ -44,7 +44,7 @@ class ActivityViewModel(
     private val _waterGlasses = MutableStateFlow(0)
     val waterGlasses: StateFlow<Int> = _waterGlasses.asStateFlow()
 
-    private val _waterGoal = MutableStateFlow(8)
+    private val _waterGoal = MutableStateFlow(dataManager.loadWaterGoal())
     val waterGoal: StateFlow<Int> = _waterGoal.asStateFlow()
 
     // --- Timers State ---
@@ -54,9 +54,9 @@ class ActivityViewModel(
     // Background Timer Coroutine Job
     private var timerTickerJob: Job? = null
 
-    // --- Room Database Streams ---
-    val notes = noteDao.getAllNotes()
-    val folders = folderDao.getAllFolders()
+    // --- Database Streams ---
+    val notes = noteRepository.getAllNotes()
+    val folders = folderRepository.getAllFolders()
 
     init {
         val today = LocalDate.now().toString()
@@ -146,7 +146,12 @@ class ActivityViewModel(
         _isEditingNote.value = isEditing
     }
 
-    // --- Health Intents ---
+    fun getLastSensorValue(): Float = dataManager.loadLastSensorValue()
+
+    fun updateSensorValue(sensorValue: Float) {
+        dataManager.saveLastSensorValue(sensorValue)
+    }
+
     fun updateSteps(newSteps: Int) {
         _steps.value = newSteps
         dataManager.saveSteps(newSteps)
@@ -159,6 +164,7 @@ class ActivityViewModel(
 
     fun setWaterGoal(newGoal: Int) {
         _waterGoal.value = newGoal
+        dataManager.saveWaterGoal(newGoal)
     }
 
     fun addWater() {
@@ -179,31 +185,31 @@ class ActivityViewModel(
 
     // --- Folder Intents ---
     fun addFolder(folder: ProjectFolder) {
-        viewModelScope.launch(Dispatchers.IO) { folderDao.insertFolder(folder) }
+        viewModelScope.launch(Dispatchers.IO) { folderRepository.insertFolder(folder) }
     }
 
     fun updateFolder(folder: ProjectFolder) {
-        viewModelScope.launch(Dispatchers.IO) { folderDao.insertFolder(folder) }
+        viewModelScope.launch(Dispatchers.IO) { folderRepository.insertFolder(folder) }
     }
 
     fun deleteFolder(folder: ProjectFolder) {
         viewModelScope.launch(Dispatchers.IO) {
-            noteDao.deleteNotesByFolder(folder.id)
-            folderDao.deleteFolder(folder)
+            noteRepository.deleteNotesByFolder(folder.id)
+            folderRepository.deleteFolder(folder)
         }
     }
 
     // --- Note Intents ---
     fun addNote(note: Note) {
-        viewModelScope.launch(Dispatchers.IO) { noteDao.insertNote(note) }
+        viewModelScope.launch(Dispatchers.IO) { noteRepository.insertNote(note) }
     }
 
     fun updateNote(note: Note) {
-        viewModelScope.launch(Dispatchers.IO) { noteDao.insertNote(note) }
+        viewModelScope.launch(Dispatchers.IO) { noteRepository.insertNote(note) }
     }
 
     fun deleteNote(note: Note) {
-        viewModelScope.launch(Dispatchers.IO) { noteDao.deleteNote(note) }
+        viewModelScope.launch(Dispatchers.IO) { noteRepository.deleteNote(note) }
     }
 
     // --- Timer Intents ---
@@ -246,8 +252,8 @@ class ActivityViewModelFactory(private val context: Context) : ViewModelProvider
             @Suppress("UNCHECKED_CAST")
             return ActivityViewModel(
                 dataManager = dataManager,
-                noteDao = database.noteDao(),
-                folderDao = database.folderDao()
+                noteRepository = NoteRepositoryImpl(database.noteDao()),
+                folderRepository = FolderRepositoryImpl(database.folderDao())
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")

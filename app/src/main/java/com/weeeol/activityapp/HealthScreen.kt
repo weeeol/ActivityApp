@@ -114,16 +114,17 @@ fun HealthScreen(
     onUpdateSteps: (Int) -> Unit = {},
     onUpdateStepGoal: (Int) -> Unit = {},
     onAddWater: () -> Unit,
-    onResetWater: () -> Unit
+    onResetWater: () -> Unit,
+    onGetLastSensorValue: () -> Float = { -1f },
+    onSaveSensorValue: (Float) -> Unit = {}
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     var isDashboardExpanded by remember { mutableStateOf(false) }
 
-    val dataManager = remember { DataManager(context) }
     var showGoalDialog by remember { mutableStateOf(false) }
     var goalInput by remember { mutableStateOf("") }
-    var lastSensorValue by remember { mutableFloatStateOf(dataManager.loadLastSensorValue()) }
+    var lastSensorValue by remember { mutableFloatStateOf(onGetLastSensorValue()) }
 
     var weatherLocation by remember { mutableStateOf("Mangaluru") }
     var weatherCondition by remember { mutableStateOf("Sunny") }
@@ -187,7 +188,7 @@ fun HealthScreen(
                     val currentSensorValue = it.values[0]
                     if (lastSensorValue == -1f) {
                         lastSensorValue = currentSensorValue
-                        dataManager.saveLastSensorValue(lastSensorValue)
+                        onSaveSensorValue(lastSensorValue)
                     } else {
                         var delta = currentSensorValue - lastSensorValue
                         if (delta < 0) delta = currentSensorValue
@@ -195,7 +196,7 @@ fun HealthScreen(
                             val newSteps = steps + delta.toInt()
                             onUpdateSteps(newSteps)
                             lastSensorValue = currentSensorValue
-                            dataManager.saveLastSensorValue(lastSensorValue)
+                            onSaveSensorValue(lastSensorValue)
                         }
                     }
                 }

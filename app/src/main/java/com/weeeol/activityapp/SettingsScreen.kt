@@ -78,9 +78,7 @@ fun SettingsScreen(
     onUpdateStepGoal: (Int) -> Unit = {},
     onUpdateWaterGoal: (Int) -> Unit = {}
 ) {
-    val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
-    val dataManager = remember { DataManager(context) }
 
     var showStepGoalDialog by remember { mutableStateOf(false) }
     var stepGoalInput by remember(stepGoal) { mutableStateOf(stepGoal.toString()) }

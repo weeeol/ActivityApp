@@ -75,6 +75,14 @@ class DataManager(private val context: Context) {
     fun loadWaterIntake(): Int {
         return sharedPreferences.getInt("saved_water", 0)
     }
+    fun saveWaterGoal(goal: Int) {
+        sharedPreferences.edit().putInt("water_goal", goal).apply()
+    }
+
+    fun loadWaterGoal(): Int {
+        return sharedPreferences.getInt("water_goal", 8)
+    }
+
     // --- DATE SAVE/LOAD FOR WATER RESET ---
     fun saveLastWaterDate(dateString: String) {
         sharedPreferences.edit().putString("last_water_date", dateString).apply()
