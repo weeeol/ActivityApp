@@ -13,10 +13,10 @@ A modern, high-performance Android productivity and lifestyle tracking applicati
 ## 📱 Screenshots
 
 <p align="center">
-  <img src="img/s1.png" width="22%" alt="Health Screen" />
-  <img src="img/s2.png" width="22%" alt="Notes Grid" />
-  <img src="img/s3.png" width="22%" alt="Code Editor Mode" />
-  <img src="img/s4.png" width="22%" alt="Timer Screen" />
+  <img src="img/s1.jpg" width="22%" alt="Health Screen" />
+  <img src="img/s2.jpg" width="22%" alt="Notes Grid" />
+  <img src="img/s3.jpg" width="22%" alt="Code Editor Mode" />
+  <img src="img/s4.jpg" width="22%" alt="Timer Screen" />
 </p>
 
 ---
