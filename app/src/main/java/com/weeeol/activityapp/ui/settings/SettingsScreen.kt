@@ -1,9 +1,7 @@
-package com.weeeol.activityapp
+package com.weeeol.activityapp.ui.settings
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,9 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -32,22 +28,16 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.WaterDrop
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -55,14 +45,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 @Composable
 fun SettingsScreen(
@@ -81,11 +67,8 @@ fun SettingsScreen(
     val haptic = LocalHapticFeedback.current
 
     var showStepGoalDialog by remember { mutableStateOf(false) }
-    var stepGoalInput by remember(stepGoal) { mutableStateOf(stepGoal.toString()) }
     var showWaterGoalDialog by remember { mutableStateOf(false) }
-    var waterGoalInput by remember(waterGoal) { mutableStateOf(waterGoal.toString()) }
 
-    // Intercept system back button / gesture to dismiss dialogs or exit settings back to main screen
     BackHandler {
         if (showStepGoalDialog) {
             showStepGoalDialog = false
@@ -171,7 +154,6 @@ fun SettingsScreen(
                         subtitle = "$stepGoal steps",
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            stepGoalInput = stepGoal.toString()
                             showStepGoalDialog = true
                         }
                     ) {
@@ -202,7 +184,6 @@ fun SettingsScreen(
                         subtitle = "$waterGoal glasses per day",
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            waterGoalInput = waterGoal.toString()
                             showWaterGoalDialog = true
                         }
                     ) {
@@ -316,7 +297,7 @@ fun SettingsScreen(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Version 0.15.0",
+                                text = "Version 1.0.0",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color.Gray
                             )
@@ -336,199 +317,34 @@ fun SettingsScreen(
 
         // Edit Step Goal Dialog
         if (showStepGoalDialog) {
-            AlertDialog(
-                onDismissRequest = { showStepGoalDialog = false },
-                title = { Text("Daily Step Goal", fontWeight = FontWeight.Bold) },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = "Set your personal target for daily walking activity.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
-                        )
-                        OutlinedTextField(
-                            value = stepGoalInput,
-                            onValueChange = { if (it.isEmpty() || it.all { char -> char.isDigit() }) stepGoalInput = it },
-                            label = { Text("Steps") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            val newGoal = stepGoalInput.toIntOrNull() ?: 10000
-                            onUpdateStepGoal(newGoal)
-                            showStepGoalDialog = false
-                        }
-                    ) {
-                        Text("Save")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showStepGoalDialog = false }) {
-                        Text("Cancel")
-                    }
+            EditGoalDialog(
+                title = "Daily Step Goal",
+                description = "Set your personal target for daily walking activity.",
+                label = "Steps",
+                currentValue = stepGoal,
+                defaultValue = 10000,
+                onDismiss = { showStepGoalDialog = false },
+                onConfirm = {
+                    onUpdateStepGoal(it)
+                    showStepGoalDialog = false
                 }
             )
         }
 
         // Edit Water Goal Dialog
         if (showWaterGoalDialog) {
-            AlertDialog(
-                onDismissRequest = { showWaterGoalDialog = false },
-                title = { Text("Hydration Goal", fontWeight = FontWeight.Bold) },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = "Set your daily target for glasses of water.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
-                        )
-                        OutlinedTextField(
-                            value = waterGoalInput,
-                            onValueChange = { if (it.isEmpty() || it.all { char -> char.isDigit() }) waterGoalInput = it },
-                            label = { Text("Glasses") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            val newGoal = waterGoalInput.toIntOrNull() ?: 8
-                            onUpdateWaterGoal(newGoal)
-                            showWaterGoalDialog = false
-                        }
-                    ) {
-                        Text("Save")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showWaterGoalDialog = false }) {
-                        Text("Cancel")
-                    }
+            EditGoalDialog(
+                title = "Hydration Goal",
+                description = "Set your daily target for glasses of water.",
+                label = "Glasses",
+                currentValue = waterGoal,
+                defaultValue = 8,
+                onDismiss = { showWaterGoalDialog = false },
+                onConfirm = {
+                    onUpdateWaterGoal(it)
+                    showWaterGoalDialog = false
                 }
             )
         }
-    }
-}
-
-@Composable
-fun SettingsSection(
-    title: String,
-    content: @Composable () -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            color = Color.Gray,
-            letterSpacing = 1.2.sp,
-            modifier = Modifier.padding(start = 12.dp)
-        )
-        content()
-    }
-}
-
-@Composable
-fun SettingsCard(
-    content: @Composable () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        )
-    ) {
-        Column {
-            content()
-        }
-    }
-}
-
-@Composable
-fun SettingsRow(
-    icon: ImageVector,
-    iconBackground: Color,
-    title: String,
-    subtitle: String? = null,
-    onClick: (() -> Unit)? = null,
-    trailing: @Composable () -> Unit
-) {
-    val rowModifier = Modifier
-        .fillMaxWidth()
-        .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
-        .padding(horizontal = 16.dp, vertical = 12.dp)
-
-    Row(
-        modifier = rowModifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.weight(1f)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(iconBackground),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(14.dp))
-
-            Column {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
-                if (subtitle != null) {
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
-                    )
-                }
-            }
-        }
-
-        trailing()
-    }
-}
-
-@Composable
-fun DataCountBadge(count: Int) {
-    Box(
-        modifier = Modifier
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(horizontal = 10.dp, vertical = 4.dp)
-    ) {
-        Text(
-            text = "$count",
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-        )
     }
 }

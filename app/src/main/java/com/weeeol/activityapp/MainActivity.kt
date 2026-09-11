@@ -25,6 +25,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.weeeol.activityapp.ui.theme.ActivityAppTheme
 import androidx.activity.compose.BackHandler
 import androidx.activity.enableEdgeToEdge
+import com.weeeol.activityapp.ui.navigation.FloatingNavigationBar
+import com.weeeol.activityapp.ui.health.HealthScreen
+import com.weeeol.activityapp.ui.notes.NotesScreen
+import com.weeeol.activityapp.ui.folders.FoldersScreen
+import com.weeeol.activityapp.ui.timer.TimerScreen
+import com.weeeol.activityapp.ui.settings.SettingsScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
